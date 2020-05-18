@@ -215,7 +215,7 @@ def train(args: DictConfig) -> None:
                 x_reps, _ = model(x)   # representations of input x
 
                 # idx
-                query_idx = torch.zeros_like(y)
+                query_idx = torch.zeros(x_reps.size(0)).cuda()
                 query_idx[::n_shot + 1] = 1
                 query_idx = query_idx.bool()
 
