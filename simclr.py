@@ -211,8 +211,8 @@ def train(args: DictConfig) -> None:
             acc_meter = AverageMeter('acc')
             test_bar = tqdm(test_tasks)
             for task in test_bar:
-                x = task[0].cuda()
-                x_reps, _ = model(x)   # representations of input x
+                x_ = task[0].cuda()
+                x_reps, _ = model(x_)   # representations of input x
 
                 # idx
                 query_idx = torch.zeros(x_reps.size(0)).cuda()
