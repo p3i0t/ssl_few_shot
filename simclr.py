@@ -210,22 +210,23 @@ def train(args: DictConfig) -> None:
             acc_meter = AverageMeter('acc')
             test_bar = tqdm(test_tasks)
             for task in test_bar:
-                x, y = task
-                x, y = x.cuda(), y.cuda()
+                x = task[0].cuda()
                 x_reps, _ = model(x)   # representations of input x
 
                 # idx
                 query_idx = torch.zeros_like(y)
-                query_idx[::n_shot] = 1
+                query_idx[::n_shot + 1] = 1
                 query_idx = query_idx.bool()
 
                 # split
-                x_query, y_query = x_reps[query_idx], y[query_idx]  # (n_way, proj_dim), (n_way*n_shot, proj_dim)
-                x_support, y_query = x_reps[~query_idx], y[~query_idx]
+                x_query = x_reps[query_idx] # (n_way, proj_dim), (n_way*n_shot, proj_dim)
+                x_support = x_reps[~query_idx]
+
+                y = torch.arange(x_query.size(0)).to(x_query.device)
 
                 cosine_dist = (x_query @ x_support.t()).view(n_way, n_shot, n_way).sum(dim=1)
                 pred = cosine_dist.argmax(dim=1)
-                acc = (pred == y_query).float().mean()
+                acc = (pred == y).float().mean()
                 acc_meter.update(acc.item())
                 test_bar.set_description("Few-shot test acc: {:.4f}".format(acc_meter.avg))
 
