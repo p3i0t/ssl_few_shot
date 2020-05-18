@@ -111,8 +111,9 @@ def train(args: DictConfig) -> None:
 
     transform = transforms.Compose([
         transforms.Resize(32),
-        transforms.RandomResizedCrop(32),
+        #transforms.RandomResizedCrop(32),
         transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
         transforms.ToTensor(),
         lambda img: (1.0 - img)
     ])
@@ -143,7 +144,7 @@ def train(args: DictConfig) -> None:
     random.shuffle(classes)
 
     n_way = 5
-    n_shot = 1
+    n_shot = 5
     test_transforms = [
         l2l.data.transforms.FusedNWaysKShots(dataset,
                                              n=n_way,
@@ -151,7 +152,7 @@ def train(args: DictConfig) -> None:
                                              filter_labels=classes[1200:]),
         l2l.data.transforms.LoadData(dataset),
         l2l.data.transforms.RemapLabels(dataset),
-        l2l.vision.transforms.RandomClassRotation(dataset, [0.0, 90.0, 180.0, 270.0])
+        #l2l.vision.transforms.RandomClassRotation(dataset, [0.0, 90.0, 180.0, 270.0])
     ]
     test_tasks = l2l.data.TaskDataset(
         dataset,
