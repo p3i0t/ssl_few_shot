@@ -223,11 +223,11 @@ def train(args: DictConfig) -> None:
                 x_query = x_reps[query_idx] # (n_way, proj_dim), (n_way*n_shot, proj_dim)
                 x_support = x_reps[~query_idx]
 
-                y = torch.arange(x_query.size(0)).to(x_query.device)
+                y_ = torch.arange(x_query.size(0)).to(x_query.device)
 
                 cosine_dist = (x_query @ x_support.t()).view(n_way, n_shot, n_way).sum(dim=1)
                 pred = cosine_dist.argmax(dim=1)
-                acc = (pred == y).float().mean()
+                acc = (pred == y_).float().mean()
                 acc_meter.update(acc.item())
                 test_bar.set_description("Few-shot test acc: {:.4f}".format(acc_meter.avg))
 
