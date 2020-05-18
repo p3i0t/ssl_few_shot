@@ -64,7 +64,7 @@ class OmniglotPair(Dataset):
 
     def __getitem__(self, i):
         img, label = self.dataset[i]
-        img = Image.fromarray(img).convert('RGB')
+        # img = Image.fromarray(img).convert('RGB')
         imgs = [self.transform(img), self.transform(img)]
         return torch.stack(imgs), label  # stack a positive pair
 
