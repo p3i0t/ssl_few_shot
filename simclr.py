@@ -111,9 +111,9 @@ def train(args: DictConfig) -> None:
 
     transform = transforms.Compose([
         transforms.Resize(32),
-        #transforms.RandomResizedCrop(32),
+        transforms.RandomResizedCrop(32),
         transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomVerticalFlip(p=0.5),
+        # transforms.RandomVerticalFlip(p=0.5),
         transforms.ToTensor(),
         lambda img: (1.0 - img)
     ])
@@ -152,7 +152,7 @@ def train(args: DictConfig) -> None:
                                              filter_labels=classes[1200:]),
         l2l.data.transforms.LoadData(dataset),
         l2l.data.transforms.RemapLabels(dataset),
-        #l2l.vision.transforms.RandomClassRotation(dataset, [0.0, 90.0, 180.0, 270.0])
+        l2l.vision.transforms.RandomClassRotation(dataset, [0.0, 90.0, 180.0, 270.0])
     ]
     test_tasks = l2l.data.TaskDataset(
         dataset,
@@ -225,7 +225,7 @@ def train(args: DictConfig) -> None:
 
                 y_ = torch.arange(x_query.size(0)).to(x_query.device)
 
-                cosine_dist = (x_query @ x_support.t()).view(n_way, n_shot, n_way).sum(dim=1)
+                cosine_dist = (x_query @ x_support.t()).view(n_way, n_way, n_shot).sum(dim=2)
                 pred = cosine_dist.argmax(dim=1)
                 acc = (pred == y_).float().mean()
                 acc_meter.update(acc.item())
