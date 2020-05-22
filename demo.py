@@ -4,6 +4,7 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
+import torchvision.transforms as transforms
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 
 import learn2learn as l2l
@@ -45,8 +46,14 @@ def main():
     model = model.cuda()
     cudnn.benchmark = True
 
+    trans = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+    ])
+    
     # Create Datasets
-    test_dataset = l2l.vision.datasets.MiniImagenet(root='data', mode='test')
+    test_dataset = l2l.vision.datasets.MiniImagenet(root='data', mode='test', transform=trans)
     test_dataset = l2l.data.MetaDataset(test_dataset)
 
     n_way = 5
