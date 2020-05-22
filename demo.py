@@ -51,7 +51,7 @@ def main():
         transforms.CenterCrop(224),
         transforms.ToTensor(),
     ])
-    
+
     # Create Datasets
     test_dataset = l2l.vision.datasets.MiniImagenet(root='data', mode='test', transform=trans)
     test_dataset = l2l.data.MetaDataset(test_dataset)
@@ -59,11 +59,11 @@ def main():
     n_way = 5
     n_shot = 1
     test_transforms = [
-        NWays(test_dataset, n_way),
-        KShots(test_dataset, 2 * n_shot),
-        LoadData(test_dataset),
-        RemapLabels(test_dataset),
-        ConsecutiveLabels(test_dataset),
+        l2l.data.transforms.FusedNWaysKShots(test_dataset,
+                                             n=n_way,
+                                             k=1 + n_shot),
+        l2l.data.transforms.LoadData(test_dataset),
+        l2l.data.transforms.RemapLabels(test_dataset),
     ]
     test_tasks = l2l.data.TaskDataset(test_dataset,
                                       task_transforms=test_transforms,
