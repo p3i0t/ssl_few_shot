@@ -8,7 +8,7 @@ from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 
 import learn2learn as l2l
 from learn2learn.data.transforms import NWays, KShots, LoadData, RemapLabels, ConsecutiveLabels
-import tqdm
+from tqdm import tqdm
 
 
 class AverageMeter(object):
@@ -42,6 +42,7 @@ def main():
     sd = torch.load(sd, map_location='cpu')
     model.load_state_dict(sd['state_dict'])
 
+    model = model.cuda()
     cudnn.benchmark = True
 
     # Create Datasets
