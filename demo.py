@@ -88,14 +88,14 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_set,
-        batch_size=4,
+        batch_size=32,
         shuffle=False,
         drop_last=False,
     )
 
     test_loader = torch.utils.data.DataLoader(
         dataset=test_set,
-        batch_size=4,
+        batch_size=32,
         shuffle=False,
         drop_last=False,
     )
