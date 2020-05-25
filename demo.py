@@ -177,7 +177,7 @@ def main():
             loss_meter.update(loss.item(), logits.size(0))
             acc_meter.update(acc.item(), logits.size(0))
 
-            train_bar.set_description("Epoch{}, Meta-test loss: {:.4f}, acc: {}".format(epoch, loss_meter.avg, acc_meter.avg))
+            test_bar.set_description("Meta-test loss: {:.4f}, acc: {}".format(loss_meter.avg, acc_meter.avg))
 
 
 if __name__ == '__main__':
