@@ -42,13 +42,14 @@ def main():
     sd = 'resnet50-1x.pth'
     sd = torch.load(sd, map_location='cpu')
     model.load_state_dict(sd['state_dict'])
-    n_proj = 128
-    # 2-layer MLP projector
-    model.fc = nn.Sequential(
-        nn.Linear(2048, 2048),
-        nn.ReLU(),
-        nn.Linear(2048, n_proj)
-    )
+    n_proj = 2048
+    # # 2-layer MLP projector
+    # model.fc = nn.Sequential(
+    #     nn.Linear(2048, 2048),
+    #     nn.ReLU(),
+    #     nn.Linear(2048, n_proj)
+    # )
+    model.fc = nn.Identity()
 
     model = model.cuda()
     cudnn.benchmark = True
