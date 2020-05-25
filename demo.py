@@ -62,8 +62,8 @@ def main():
 
     n_ways = 5
     n_shots = 1
-    n_queries = 15
-    n_aug_support = 5
+    n_queries = 3
+    n_aug_support = 2
     train_set = MetaCIFAR100(
         root='data/CIFAR-FS',
         partition='train',
@@ -88,14 +88,14 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_set,
-        batch_size=32,
+        batch_size=3,
         shuffle=False,
         drop_last=False,
     )
 
     test_loader = torch.utils.data.DataLoader(
         dataset=test_set,
-        batch_size=32,
+        batch_size=3,
         shuffle=False,
         drop_last=False,
     )
@@ -129,7 +129,7 @@ def main():
             rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
 
             q = rep_q.view(b, n_ways * n_queries, n_proj)
-            s = rep_s.view(b, n_shots * n_aug_support, n_ways, n_proj).mean(dim=1)  # centroid of same way/class
+            s = rep_s.view(b, n_ways, n_shots * n_aug_support, n_proj).mean(dim=2)  # centroid of same way/class
             s = s.permute(0, 2, 1).contiguous()
 
             cosine_scores = q@s  # batch matrix multiplication
@@ -164,7 +164,7 @@ def main():
             rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
 
             q = rep_q.view(b, n_ways, n_proj)
-            s = rep_s.view(b, n_shots, n_ways, n_proj).mean(dim=1)  # centroid of same way/class
+            s = rep_s.view(b, n_ways, n_shots, n_proj).mean(dim=2)  # centroid of same way/class
             s = s.permute(0, 2, 1).contiguous()
 
             cosine_scores = q @ s  # batch matrix multiplication
