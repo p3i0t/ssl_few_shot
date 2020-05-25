@@ -1,14 +1,14 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
+from PIL import Image
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 
-import learn2learn as l2l
-from learn2learn.data.transforms import NWays, KShots, LoadData, RemapLabels, ConsecutiveLabels
+from datasets.cifar import MetaCIFAR100
 from tqdm import tqdm
 
 
@@ -42,57 +42,142 @@ def main():
     sd = 'resnet50-1x.pth'
     sd = torch.load(sd, map_location='cpu')
     model.load_state_dict(sd['state_dict'])
+    n_proj = 128
+    # 2-layer MLP projector
+    model.fc = nn.Sequential(
+        nn.Linear(2048, 2048),
+        nn.ReLU(),
+        nn.Linear(2048, n_proj)
+    )
 
     model = model.cuda()
     cudnn.benchmark = True
 
     trans = transforms.Compose([
+        lambda x: Image.fromarray(x),
         transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
     ])
 
-    # Create Datasets
-    test_dataset = l2l.vision.datasets.MiniImagenet(root='data', mode='test', transform=trans)
-    test_dataset = l2l.data.MetaDataset(test_dataset)
+    n_ways = 5
+    n_shots = 1
+    n_queries = 15
+    n_aug_support = 5
+    train_set = MetaCIFAR100(
+        root='data/CIFAR-FS',
+        partition='train',
+        train_transform=trans,
+        test_transform=trans,
+        n_ways=n_ways,
+        n_shots=n_shots,
+        n_queries=n_queries,
+        n_aug_support_samples=n_aug_support
+    )
 
-    n_way = 5
-    n_shot = 1
-    test_transforms = [
-        l2l.data.transforms.FusedNWaysKShots(test_dataset,
-                                             n=n_way,
-                                             k=1 + n_shot),
-        l2l.data.transforms.LoadData(test_dataset),
-        l2l.data.transforms.RemapLabels(test_dataset),
-    ]
-    test_tasks = l2l.data.TaskDataset(test_dataset,
-                                      task_transforms=test_transforms,
-                                      num_tasks=100)
+    test_set = MetaCIFAR100(
+        root='data/CIFAR-FS',
+        partition='test',
+        train_transform=trans,
+        test_transform=trans,
+        n_ways=n_ways,
+        n_shots=n_shots,
+        n_queries=1,
+        n_aug_support_samples=1
+    )
 
-    model.eval()
-    acc_meter = AverageMeter('acc')
-    test_bar = tqdm(test_tasks)
-    for task in test_bar:
-        x_ = task[0].cuda()
-        logits = model(x_)  # representations of input x
+    train_loader = torch.utils.data.DataLoader(
+        dataset=train_set,
+        batch_size=4,
+        shuffle=False,
+        drop_last=False,
+    )
 
-        x_reps = F.normalize(logits, dim=1)
-        # idx
-        query_idx = torch.zeros(x_reps.size(0)).cuda()
-        query_idx[::n_shot + 1] = 1
-        query_idx = query_idx.bool()
+    test_loader = torch.utils.data.DataLoader(
+        dataset=test_set,
+        batch_size=4,
+        shuffle=False,
+        drop_last=False,
+    )
+    # # print(dataset[0][0].size())
+    # # print(dataset[0][1].shape)
+    # # print(dataset[0][1])
+    # # print(dataset[0][2].size())
+    # # print(dataset[0][3].shape)
+    # # print(dataset[0][3])
+    #
+    # b = next(iter(meta_loader))
+    # for e in b:
+    #     print(type(e), e.size())
+    # exit(0)
 
-        # split
-        x_query = x_reps[query_idx]  # (n_way, proj_dim), (n_way*n_shot, proj_dim)
-        x_support = x_reps[~query_idx]
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-        y_ = torch.arange(x_query.size(0)).to(x_query.device)
+    for epoch in range(1, 11):
+        model.train()
+        loss_meter = AverageMeter("ce_loss")
+        acc_meter = AverageMeter("acc_loss")
+        train_bar = tqdm(train_loader)
+        for x_support, y_support, x_queries, y_queries in train_bar:
+            x_s = x_support.cuda()
+            y_s = y_support.cuda()
+            x_q = x_queries.cuda()
+            y_q = y_queries.cuda()
 
-        cosine_dist = (x_query @ x_support.t()).view(n_way, n_way, n_shot).sum(dim=2)
-        pred = cosine_dist.argmax(dim=1)
-        acc = (pred == y_).float().mean()
-        acc_meter.update(acc.item())
-        test_bar.set_description("Few-shot test acc: {:.4f}".format(acc_meter.avg))
+            b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
+            rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
+            rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
+
+            q = rep_q.view(b, n_ways * n_queries, n_proj)
+            s = rep_s.view(b, n_shots * n_aug_support, n_ways, n_proj).mean(dim=1)  # centroid of same way/class
+            s = s.permute(0, 2, 1).contiguous()
+
+            cosine_scores = q@s  # batch matrix multiplication
+            logits = cosine_scores.view(-1, n_ways)
+            labels = y_q.view(-1)
+
+            loss = F.cross_entropy(logits, labels)
+            acc = (logits.argmax(dim=1) == labels).float().mean()
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            loss_meter.update(loss.item(), logits.size(0))
+            acc_meter.update(acc.item(), logits.size(0))
+
+            train_bar.set_description("Epoch{}, Meta-training loss: {:.4f}, acc: {}".format(epoch, loss_meter.avg, acc_meter.avg))
+
+        model.eval()
+        loss_meter = AverageMeter("ce_loss")
+        acc_meter = AverageMeter("acc_loss")
+        test_bar = tqdm(test_loader)
+
+        for x_support, y_support, x_queries, y_queries in test_bar:
+            x_s = x_support.cuda()
+            y_s = y_support.cuda()
+            x_q = x_queries.cuda()
+            y_q = y_queries.cuda()
+
+            b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
+            rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
+            rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
+
+            q = rep_q.view(b, n_ways, n_proj)
+            s = rep_s.view(b, n_shots, n_ways, n_proj).mean(dim=1)  # centroid of same way/class
+            s = s.permute(0, 2, 1).contiguous()
+
+            cosine_scores = q @ s  # batch matrix multiplication
+            logits = cosine_scores.view(-1, n_ways)
+            labels = y_q.view(-1)
+
+            loss = F.cross_entropy(logits, labels)
+            acc = (logits.argmax(dim=1) == labels).float().mean()
+
+            loss_meter.update(loss.item(), logits.size(0))
+            acc_meter.update(acc.item(), logits.size(0))
+
+            train_bar.set_description("Epoch{}, Meta-test loss: {:.4f}, acc: {}".format(epoch, loss_meter.avg, acc_meter.avg))
 
 
 if __name__ == '__main__':
