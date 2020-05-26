@@ -134,7 +134,7 @@ def main():
             s = s.permute(0, 2, 1).contiguous()
 
             cosine_scores = q@s  # batch matrix multiplication
-            logits = cosine_scores.view(-1, n_ways)
+            logits = cosine_scores.view(-1, n_ways) / 0.2
             labels = y_q.view(-1)
 
             loss = F.cross_entropy(logits, labels)
@@ -169,7 +169,7 @@ def main():
             s = s.permute(0, 2, 1).contiguous()
 
             cosine_scores = q @ s  # batch matrix multiplication
-            logits = cosine_scores.view(-1, n_ways)
+            logits = cosine_scores.view(-1, n_ways) / 0.2
             labels = y_q.view(-1)
 
             loss = F.cross_entropy(logits, labels)

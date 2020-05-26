@@ -62,7 +62,7 @@ class MetaCIFAR100(CIFAR100):
                  n_queries=15,
                  n_aug_support_samples=5,
                  n_test_runs=1000,
-                 fix_seed=True):
+                 fix_seed=False):
         """
         Dataset for meta learning.
         :param root: data directory
