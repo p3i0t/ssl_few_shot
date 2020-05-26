@@ -54,7 +54,14 @@ def main():
     model = model.cuda()
     cudnn.benchmark = True
 
-    trans = transforms.Compose([
+    train_transform = transforms.Compose([
+        lambda x: Image.fromarray(x),
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+    ])
+
+    test_transform = transforms.Compose([
         lambda x: Image.fromarray(x),
         transforms.Resize(256),
         transforms.CenterCrop(224),
@@ -63,13 +70,13 @@ def main():
 
     n_ways = 5
     n_shots = 1
-    n_queries = 3
-    n_aug_support = 2
+    n_queries = 6
+    n_aug_support = 1
     train_set = MetaCIFAR100(
         root='data/CIFAR-FS',
         partition='train',
-        train_transform=trans,
-        test_transform=trans,
+        train_transform=train_transform,
+        test_transform=test_transform,
         n_ways=n_ways,
         n_shots=n_shots,
         n_queries=n_queries,
@@ -79,8 +86,8 @@ def main():
     test_set = MetaCIFAR100(
         root='data/CIFAR-FS',
         partition='test',
-        train_transform=trans,
-        test_transform=trans,
+        train_transform=train_transform,
+        test_transform=test_transform,
         n_ways=n_ways,
         n_shots=n_shots,
         n_queries=1,
