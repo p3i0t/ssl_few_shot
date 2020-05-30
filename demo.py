@@ -56,15 +56,17 @@ def main():
 
     train_transform = transforms.Compose([
         lambda x: Image.fromarray(x),
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
+        transforms.Resize(160, interpolation=Image.BILINEAR),
+        transforms.RandomCrop(128),
+        # transforms.RandomResizedCrop(224),
+        #transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
     ])
 
     test_transform = transforms.Compose([
         lambda x: Image.fromarray(x),
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.Resize(160, interpolation=Image.BILINEAR),
+        transforms.CenterCrop(128),
         transforms.ToTensor(),
     ])
 
@@ -96,14 +98,14 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_set,
-        batch_size=3,
+        batch_size=16,
         shuffle=False,
         drop_last=False,
     )
 
     test_loader = torch.utils.data.DataLoader(
         dataset=test_set,
-        batch_size=3,
+        batch_size=16,
         shuffle=False,
         drop_last=False,
     )
