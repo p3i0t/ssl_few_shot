@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,9 +7,15 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
-from apex import amp
+
 from PIL import Image
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
+
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.backends.cudnn as cudnn
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
+import torch.multiprocessing as mp
 
 from datasets.cifar import MetaCIFAR100
 from tqdm import tqdm
@@ -39,6 +47,18 @@ class AverageMeter(object):
 
 
 def main():
+    n_gpus = torch.cuda.device_count()
+    # Use torch.multiprocessing.spawn to launch distributed processes: the main_worker process function
+    mp.spawn(main_worker, nprocs=n_gpus, args=())
+
+
+def main_worker(rank):
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = '1234'
+
+    dist.init_process_group(backend='nccl', world_size=2, rank=rank)
+
+    # prepare model
     model = resnet50x1()
     sd = 'resnet50-1x.pth'
     sd = torch.load(sd, map_location='cpu')
@@ -52,10 +72,12 @@ def main():
         nn.ReLU(),
         nn.Linear(2048, n_proj)
     )
-    # model.fc = nn.Identity()
 
-    model = model.cuda()
     cudnn.benchmark = True
+
+    torch.cuda.set_device(rank)  # put the model and training on GPU rank.
+    model = model.cuda()
+    model = DDP(model, device_ids=[rank], output_device=rank)
 
     train_transform = transforms.Compose([
         lambda x: Image.fromarray(x),
@@ -88,6 +110,8 @@ def main():
         n_aug_support_samples=n_aug_support
     )
 
+    train_sampler = DistributedSampler(train_set)
+
     test_set = MetaCIFAR100(
         root='data/CIFAR-FS',
         partition='test',
@@ -99,11 +123,14 @@ def main():
         n_aug_support_samples=1
     )
 
+    test_sampler = DistributedSampler(test_set)
+
     train_loader = torch.utils.data.DataLoader(
         dataset=train_set,
         batch_size=16,
         shuffle=False,
         drop_last=False,
+        sampler=train_sampler,
     )
 
     test_loader = torch.utils.data.DataLoader(
@@ -111,13 +138,13 @@ def main():
         batch_size=16,
         shuffle=False,
         drop_last=False,
+        sampler=test_sampler,
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    opt_level = 'O1'
-    model, optimizer = amp.initialize(model, optimizer, opt_level=opt_level)
 
     for epoch in range(1, 11):
+        train_sampler.set_epoch(epoch)
         model.train()
         loss_meter = AverageMeter("ce_loss")
         acc_meter = AverageMeter("acc_loss")
@@ -143,10 +170,9 @@ def main():
             loss = F.cross_entropy(logits, labels)
             acc = (logits.argmax(dim=1) == labels).float().mean()
 
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                optimizer.zero_grad()
-                scaled_loss.backward()
-                optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
             loss_meter.update(loss.item(), logits.size(0))
             acc_meter.update(acc.item(), logits.size(0))
@@ -158,6 +184,7 @@ def main():
         acc_meter = AverageMeter("acc_loss")
         test_bar = tqdm(test_loader)
 
+        test_sampler.set_epoch(epoch)
         for x_support, y_support, x_queries, y_queries in test_bar:
             with torch.no_grad():
                 x_s = x_support.cuda()
