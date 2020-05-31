@@ -5,6 +5,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
+from apex import amp
 from PIL import Image
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 
@@ -42,14 +43,16 @@ def main():
     sd = 'resnet50-1x.pth'
     sd = torch.load(sd, map_location='cpu')
     model.load_state_dict(sd['state_dict'])
-    n_proj = 2048
-    # # 2-layer MLP projector
-    # model.fc = nn.Sequential(
-    #     nn.Linear(2048, 2048),
-    #     nn.ReLU(),
-    #     nn.Linear(2048, n_proj)
-    # )
-    model.fc = nn.Identity()
+    n_infeatures = model.fc.n_infeatures
+    n_proj = 128
+
+    # 2-layer MLP projector
+    model.fc = nn.Sequential(
+        nn.Linear(n_infeatures, 2048),
+        nn.ReLU(),
+        nn.Linear(2048, n_proj)
+    )
+    # model.fc = nn.Identity()
 
     model = model.cuda()
     cudnn.benchmark = True
@@ -109,19 +112,10 @@ def main():
         shuffle=False,
         drop_last=False,
     )
-    # # print(dataset[0][0].size())
-    # # print(dataset[0][1].shape)
-    # # print(dataset[0][1])
-    # # print(dataset[0][2].size())
-    # # print(dataset[0][3].shape)
-    # # print(dataset[0][3])
-    #
-    # b = next(iter(meta_loader))
-    # for e in b:
-    #     print(type(e), e.size())
-    # exit(0)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    opt_level = 'O1'
+    model, optimizer = amp.initialize(model, optimizer, opt_level=opt_level)
 
     for epoch in range(1, 11):
         model.train()
@@ -149,9 +143,10 @@ def main():
             loss = F.cross_entropy(logits, labels)
             acc = (logits.argmax(dim=1) == labels).float().mean()
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                optimizer.zero_grad()
+                scaled_loss.backward()
+                optimizer.step()
 
             loss_meter.update(loss.item(), logits.size(0))
             acc_meter.update(acc.item(), logits.size(0))
@@ -164,28 +159,29 @@ def main():
         test_bar = tqdm(test_loader)
 
         for x_support, y_support, x_queries, y_queries in test_bar:
-            x_s = x_support.cuda()
-            y_s = y_support.cuda()
-            x_q = x_queries.cuda()
-            y_q = y_queries.cuda()
+            with torch.no_grad():
+                x_s = x_support.cuda()
+                y_s = y_support.cuda()
+                x_q = x_queries.cuda()
+                y_q = y_queries.cuda()
 
-            b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
-            rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
-            rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
+                b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
+                rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
+                rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
+    
+                q = rep_q.view(b, n_ways, n_proj)
+                s = rep_s.view(b, n_ways, n_shots, n_proj).mean(dim=2)  # centroid of same way/class
+                s = s.permute(0, 2, 1).contiguous()
 
-            q = rep_q.view(b, n_ways, n_proj)
-            s = rep_s.view(b, n_ways, n_shots, n_proj).mean(dim=2)  # centroid of same way/class
-            s = s.permute(0, 2, 1).contiguous()
+                cosine_scores = q @ s  # batch matrix multiplication
+                logits = cosine_scores.view(-1, n_ways) / 0.2
+                labels = y_q.view(-1)
 
-            cosine_scores = q @ s  # batch matrix multiplication
-            logits = cosine_scores.view(-1, n_ways) / 0.2
-            labels = y_q.view(-1)
+                loss = F.cross_entropy(logits, labels)
+                acc = (logits.argmax(dim=1) == labels).float().mean()
 
-            loss = F.cross_entropy(logits, labels)
-            acc = (logits.argmax(dim=1) == labels).float().mean()
-
-            loss_meter.update(loss.item(), logits.size(0))
-            acc_meter.update(acc.item(), logits.size(0))
+                loss_meter.update(loss.item(), logits.size(0))
+                acc_meter.update(acc.item(), logits.size(0))
 
             test_bar.set_description("Meta-test loss: {:.4f}, acc: {}".format(loss_meter.avg, acc_meter.avg))
 
