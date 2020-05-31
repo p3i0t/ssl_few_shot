@@ -43,7 +43,7 @@ def main():
     sd = 'resnet50-1x.pth'
     sd = torch.load(sd, map_location='cpu')
     model.load_state_dict(sd['state_dict'])
-    n_infeatures = model.fc.n_infeatures
+    n_infeatures = model.fc.in_features
     n_proj = 128
 
     # 2-layer MLP projector
@@ -168,7 +168,7 @@ def main():
                 b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
                 rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
                 rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
-    
+
                 q = rep_q.view(b, n_ways, n_proj)
                 s = rep_s.view(b, n_ways, n_shots, n_proj).mean(dim=2)  # centroid of same way/class
                 s = s.permute(0, 2, 1).contiguous()
