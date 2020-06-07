@@ -150,29 +150,30 @@ def main_worker(rank):
         acc_meter = AverageMeter("acc_loss")
         train_bar = tqdm(train_loader)
         for x_support, y_support, x_queries, y_queries in train_bar:
-            x_s = x_support.cuda()
-            y_s = y_support.cuda()
-            x_q = x_queries.cuda()
-            y_q = y_queries.cuda()
+            with torch.autograd.detect_anomaly():
+                x_s = x_support.cuda(non_blocking=True)
+                y_s = y_support.cuda(non_blocking=True)
+                x_q = x_queries.cuda(non_blocking=True)
+                y_q = y_queries.cuda(non_blocking=True)
 
-            b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
-            rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
-            rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
+                b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
+                rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
+                rep_q = F.normalize(model(x_q.view(-1, c, h, w)), dim=-1)
 
-            q = rep_q.view(b, n_ways * n_queries, n_proj)
-            s = rep_s.view(b, n_ways, n_shots * n_aug_support, n_proj).mean(dim=2)  # centroid of same way/class
-            s = s.permute(0, 2, 1).contiguous()
+                q = rep_q.view(b, n_ways * n_queries, n_proj)
+                s = rep_s.view(b, n_ways, n_shots * n_aug_support, n_proj).mean(dim=2)  # centroid of same way/class
+                s = s.permute(0, 2, 1).contiguous()
 
-            cosine_scores = q@s  # batch matrix multiplication
-            logits = cosine_scores.view(-1, n_ways) / 0.2
-            labels = y_q.view(-1)
+                cosine_scores = q@s  # batch matrix multiplication
+                logits = cosine_scores.view(-1, n_ways) / 0.2
+                labels = y_q.view(-1)
 
-            loss = F.cross_entropy(logits, labels)
-            acc = (logits.argmax(dim=1) == labels).float().mean()
+                loss = F.cross_entropy(logits, labels)
+                acc = (logits.argmax(dim=1) == labels).float().mean()
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
             loss_meter.update(loss.item(), logits.size(0))
             acc_meter.update(acc.item(), logits.size(0))
@@ -187,10 +188,10 @@ def main_worker(rank):
         test_sampler.set_epoch(epoch)
         for x_support, y_support, x_queries, y_queries in test_bar:
             with torch.no_grad():
-                x_s = x_support.cuda()
-                y_s = y_support.cuda()
-                x_q = x_queries.cuda()
-                y_q = y_queries.cuda()
+                x_s = x_support.cuda(non_blocking=True)
+                y_s = y_support.cuda(non_blocking=True)
+                x_q = x_queries.cuda(non_blocking=True)
+                y_q = y_queries.cuda(non_blocking=True)
 
                 b, prod, c, h, w = x_s.size()  # prod = n_way * n_aug
                 rep_s = F.normalize(model(x_s.view(-1, c, h, w)), dim=-1)
