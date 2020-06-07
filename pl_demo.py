@@ -120,6 +120,26 @@ class FewShotLearner(pl.LightningModule):
         )
         return test_loader
 
+    def test_step(self,  batch, batch_idx):
+        x_support, y_support, x_queries, y_queries = batch
+
+        b, prod, c, h, w = x_support.size()  # prod = n_way * n_aug
+        rep_s = self(x_support)
+        rep_q = self(x_queries)
+
+        q = rep_q.view(b, self.n_ways * self.n_queries, self.proj_dim)
+        # centroid of same way/class
+        s = rep_s.view(b, self.n_ways, self.n_shots * self.n_aug_support, self.proj_dim).mean(dim=2)
+        s = s.clone().permute(0, 2, 1).contiguous()
+
+        cosine_scores = q @ s  # batch matrix multiplication
+        logits = cosine_scores.view(-1, self.n_ways) / 0.2
+        labels = y_queries.view(-1)
+
+        loss = F.cross_entropy(logits, labels)
+        acc = (logits.argmax(dim=1) == labels).float().mean()
+        return {'loss': loss, 'acc': acc}
+
 
 if __name__ == '__main__':
     fewshot_learner = FewShotLearner()
