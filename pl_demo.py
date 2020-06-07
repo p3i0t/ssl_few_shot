@@ -97,6 +97,7 @@ class FewShotLearner(pl.LightningModule):
             batch_size=16,
             shuffle=True,
             drop_last=False,
+            num_workers=4
         )
         return train_loader
 
@@ -116,7 +117,8 @@ class FewShotLearner(pl.LightningModule):
             dataset=test_set,
             batch_size=16,
             shuffle=False,
-            drop_last=False
+            drop_last=False,
+            num_workers=4
         )
         return test_loader
 
@@ -139,6 +141,16 @@ class FewShotLearner(pl.LightningModule):
         loss = F.cross_entropy(logits, labels)
         acc = (logits.argmax(dim=1) == labels).float().mean()
         return {'test_loss': loss, 'test_acc': acc}
+
+    def test_end(self, outputs):
+        # OPTIONAL
+        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+
+        avg_acc = torch.stack([x['test_acc'].float() for x in outputs]).mean()
+
+        logs = {'test_loss': avg_loss, 'test_acc': avg_acc}
+
+        return {'avg_test_loss': avg_loss, 'avg_test_acc': avg_acc, 'log': logs, 'progress_bar': logs}
 
 
 if __name__ == '__main__':
