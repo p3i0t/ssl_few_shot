@@ -146,7 +146,7 @@ class FewShotLearner(pl.LightningModule):
         # OPTIONAL
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
 
-        avg_acc = torch.stack([x['test_acc'].float() for x in outputs]).mean()
+        avg_acc = torch.stack([x['test_acc'] for x in outputs]).mean()
 
         logs = {'test_loss': avg_loss, 'test_acc': avg_acc}
 
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     trainer = pl.Trainer(
         gpus=2,
         max_epochs=1,
-        distributed_backend='ddp',
+        #distributed_backend='ddp',
         precision=16,
     )
     trainer.fit(fewshot_learner)
