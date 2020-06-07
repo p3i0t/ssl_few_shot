@@ -138,7 +138,7 @@ class FewShotLearner(pl.LightningModule):
 
         loss = F.cross_entropy(logits, labels)
         acc = (logits.argmax(dim=1) == labels).float().mean()
-        return {'loss': loss, 'acc': acc}
+        return {'test_loss': loss, 'test_acc': acc}
 
 
 if __name__ == '__main__':
@@ -150,4 +150,4 @@ if __name__ == '__main__':
         precision=32,
     )
     trainer.fit(fewshot_learner)
-    trainer.test(fewshot_learner)
+    trainer.test()
