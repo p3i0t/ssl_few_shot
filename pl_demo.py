@@ -50,7 +50,7 @@ class FewShotLearner(pl.LightningModule):
 
         self.n_ways = 5
         self.n_shots = 1
-        self.n_queries = 6
+        self.n_queries = 4
         self.n_aug_support = 1
 
     def forward(self, x):
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     trainer = pl.Trainer(
         gpus=2,
         max_epochs=1,
-        #distributed_backend='ddp',
+        distributed_backend='ddp',
         precision=16,
     )
     trainer.fit(fewshot_learner)
