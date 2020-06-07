@@ -147,7 +147,7 @@ if __name__ == '__main__':
         gpus=2,
         max_epochs=1,
         distributed_backend='ddp',
-        precision=32,
+        precision=16,
     )
     trainer.fit(fewshot_learner)
     trainer.test()
