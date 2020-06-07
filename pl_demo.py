@@ -44,7 +44,7 @@ class FewShotLearner(pl.LightningModule):
             checkpoint_path = 'resnet50-4x.pth'
 
         state = torch.load(checkpoint_path, map_location='cpu')
-        self.backbone.load_state_dict(state)
+        self.backbone.load_state_dict(state['state_dict'])
 
         self.proj_dim = self.backbone.fc.out_features
 
