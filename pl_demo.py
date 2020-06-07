@@ -50,7 +50,7 @@ class FewShotLearner(pl.LightningModule):
 
         self.n_ways = 5
         self.n_shots = 1
-        self.n_queries = 4
+        self.n_queries = 6
         self.n_aug_support = 1
 
     def forward(self, x):
@@ -89,7 +89,8 @@ class FewShotLearner(pl.LightningModule):
             n_ways=self.n_ways,
             n_shots=self.n_shots,
             n_queries=self.n_queries,
-            n_aug_support_samples=self.n_aug_support
+            n_aug_support_samples=self.n_aug_support,
+            n_test_runs=2000,
         )
 
         train_loader = torch.utils.data.DataLoader(
@@ -108,7 +109,8 @@ class FewShotLearner(pl.LightningModule):
             n_ways=self.n_ways,
             n_shots=self.n_shots,
             n_queries=1,
-            n_aug_support_samples=1
+            n_aug_support_samples=1,
+            n_test_runs=1000,
         )
 
         test_loader = torch.utils.data.DataLoader(
@@ -150,7 +152,7 @@ class FewShotLearner(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    fewshot_learner = FewShotLearner(backbone='resnet50x2')
+    fewshot_learner = FewShotLearner(backbone='resnet50x1')
     trainer = pl.Trainer(
         gpus=2,
         max_epochs=1,
