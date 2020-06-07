@@ -150,9 +150,9 @@ class FewShotLearner(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    fewshot_learner = FewShotLearner()
+    fewshot_learner = FewShotLearner(backbone='resnet50x2')
     trainer = pl.Trainer(
-        gpus=1,
+        gpus=2,
         max_epochs=1,
         #distributed_backend='ddp',
         precision=16,
