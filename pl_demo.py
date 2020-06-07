@@ -95,9 +95,7 @@ class FewShotLearner(pl.LightningModule):
         train_loader = torch.utils.data.DataLoader(
             dataset=train_set,
             batch_size=16,
-            shuffle=True,
             drop_last=False,
-            num_workers=4
         )
         return train_loader
 
@@ -116,9 +114,7 @@ class FewShotLearner(pl.LightningModule):
         test_loader = torch.utils.data.DataLoader(
             dataset=test_set,
             batch_size=16,
-            shuffle=False,
             drop_last=False,
-            num_workers=4
         )
         return test_loader
 
