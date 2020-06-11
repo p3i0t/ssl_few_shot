@@ -31,7 +31,13 @@ def get_few_shot_tasksets(
     :param n_test_tasks: total number of valid and test tasks.
     :return:
     """
+    if dataset == 'mini-imagenet':
+        f = lambda x: transforms.ToPILImage(mode='RGB')(x)
+    else:
+        f = lambda x: x
+
     train_transform = transforms.Compose([
+        f,
         transforms.Resize(160, interpolation=Image.BILINEAR),
         transforms.RandomCrop(128),
         # transforms.RandomHorizontalFlip(),
@@ -39,6 +45,7 @@ def get_few_shot_tasksets(
     ])
 
     test_transform = transforms.Compose([
+        f,
         transforms.Resize(160, interpolation=Image.BILINEAR),
         transforms.CenterCrop(128),
         transforms.ToTensor()
