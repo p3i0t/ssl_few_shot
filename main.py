@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 import pytorch_lightning as pl
+from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 from get_tasks import get_few_shot_tasksets
 
 
