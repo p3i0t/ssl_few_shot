@@ -50,7 +50,7 @@ class FewShotLearner(pl.LightningModule):
 
     def _batch_forward(self, batch):
         x, y = batch
-        b, way_shot_query, c, h, w = x
+        b, way_shot_query, c, h, w = x.size()
 
         x_ = x.view(b, self.n_ways, (self.n_shots + self.n_queries), c, h, w)
         y_ = y.view(b, self.n_ways, (self.n_shots + self.n_queries))
