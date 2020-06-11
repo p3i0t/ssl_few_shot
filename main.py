@@ -1,15 +1,8 @@
-import hydra
-from omegaconf import DictConfig
-import logging
-
 import torch
-import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
-import learn2learn as l2l
-
-from get_tasks import get_few_shot_tasksets
 
 import pytorch_lightning as pl
+from get_tasks import get_few_shot_tasksets
 
 
 class FewShotLearner(pl.LightningModule):
