@@ -52,14 +52,14 @@ class FewShotLearner(pl.LightningModule):
         x, y = batch
         b, way_shot_query, c, h, w = x.size()
 
-        x_ = x.view(b, self.n_ways, (self.n_shots + self.n_queries), c, h, w)
-        y_ = y.view(b, self.n_ways, (self.n_shots + self.n_queries))
+        x_ = x.view(b, self.n_ways, (self.n_shots + self.n_queries), c, h, w).contiguous()
+        y_ = y.view(b, self.n_ways, (self.n_shots + self.n_queries)).contiguous()
 
         x_support, x_queries = torch.split_with_sizes(x_, split_sizes=[self.n_shots, self.n_queries], dim=2)
         y_support, y_queries = torch.split_with_sizes(y_, split_sizes=[self.n_shots, self.n_queries], dim=2)
 
-        rep_s = self(x_support.view(b, self.n_ways * self.n_shots, c, h, w))
-        rep_q = self(x_queries.view(b, self.n_ways * self.n_queries, c, h, w))
+        rep_s = self(x_support.view(b, self.n_ways * self.n_shots, c, h, w).contiguous())
+        rep_q = self(x_queries.view(b, self.n_ways * self.n_queries, c, h, w).contiguous())
 
         q = rep_q.view(b, self.n_ways * self.n_queries, self.proj_dim)
         # centroid of same way/class
@@ -68,7 +68,7 @@ class FewShotLearner(pl.LightningModule):
 
         cosine_scores = q @ s  # batch matrix multiplication
         logits = cosine_scores.view(-1, self.n_ways) / 0.1
-        labels = y_queries.view(-1)
+        labels = y_queries.contiguous().view(-1)
 
         loss = F.cross_entropy(logits, labels)
         acc = (logits.argmax(dim=1) == labels).float().mean()
