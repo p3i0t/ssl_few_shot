@@ -35,23 +35,14 @@ def get_few_shot_tasksets(
         transforms.Resize(160, interpolation=Image.BILINEAR),
         transforms.RandomCrop(128),
         # transforms.RandomHorizontalFlip(),
+        transforms.ToTensor()
     ])
 
     test_transform = transforms.Compose([
         transforms.Resize(160, interpolation=Image.BILINEAR),
         transforms.CenterCrop(128),
+        transforms.ToTensor()
     ])
-
-    if 'cifar' in dataset:
-        train_transform = transforms.Compose([
-            train_transform,
-            transforms.ToTensor()
-        ])
-
-        test_transform = transforms.Compose([
-            test_transform,
-            transforms.ToTensor()
-        ])
 
     if dataset == 'cifar-fs':
         train_dataset = l2l.vision.datasets.CIFARFS(
@@ -105,17 +96,20 @@ def get_few_shot_tasksets(
         train_dataset = l2l.vision.datasets.TieredImagenet(
             root=root,
             transform=train_transform,
-            mode='train'
+            mode='train',
+            download=True
         )
         valid_dataset = l2l.vision.datasets.TieredImagenet(
             root=root,
             transform=test_transform,
-            mode='validation'
+            mode='validation',
+            download=True
         )
         test_dataset = l2l.vision.datasets.TieredImagenet(
             root=root,
             transform=test_transform,
-            mode='test'
+            mode='test',
+            download=True
         )
     else:
         raise Exception("dataset {} not available.".format(dataset))
