@@ -32,24 +32,33 @@ def get_few_shot_tasksets(
     :return:
     """
     if dataset == 'mini-imagenet':
-        f = lambda x: transforms.ToPILImage(mode='RGB')(x)
+        train_transform = transforms.Compose([
+            transforms.ToPILImage(mode='RGB')
+            transforms.Resize(160, interpolation=Image.BILINEAR),
+            transforms.RandomCrop(128),
+            # transforms.RandomHorizontalFlip(),
+            transforms.ToTensor()
+        ])
+
+        test_transform = transforms.Compose([
+            transforms.ToPILImage(mode='RGB')
+            transforms.Resize(160, interpolation=Image.BILINEAR),
+            transforms.CenterCrop(128),
+            transforms.ToTensor()
+        ])
     else:
-        f = lambda x: x
+        train_transform = transforms.Compose([
+            transforms.Resize(160, interpolation=Image.BILINEAR),
+            transforms.RandomCrop(128),
+            # transforms.RandomHorizontalFlip(),
+            transforms.ToTensor()
+        ])
 
-    train_transform = transforms.Compose([
-        f,
-        transforms.Resize(160, interpolation=Image.BILINEAR),
-        transforms.RandomCrop(128),
-        # transforms.RandomHorizontalFlip(),
-        transforms.ToTensor()
-    ])
-
-    test_transform = transforms.Compose([
-        f,
-        transforms.Resize(160, interpolation=Image.BILINEAR),
-        transforms.CenterCrop(128),
-        transforms.ToTensor()
-    ])
+        test_transform = transforms.Compose([
+            transforms.Resize(160, interpolation=Image.BILINEAR),
+            transforms.CenterCrop(128),
+            transforms.ToTensor()
+        ])
 
     if dataset == 'cifar-fs':
         train_dataset = l2l.vision.datasets.CIFARFS(
