@@ -35,14 +35,23 @@ def get_few_shot_tasksets(
         transforms.Resize(160, interpolation=Image.BILINEAR),
         transforms.RandomCrop(128),
         # transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
     ])
 
     test_transform = transforms.Compose([
         transforms.Resize(160, interpolation=Image.BILINEAR),
         transforms.CenterCrop(128),
-        transforms.ToTensor(),
     ])
+
+    if 'cifar' in dataset:
+        train_transform = transforms.Compose([
+            train_transform,
+            transforms.ToTensor()
+        ])
+
+        test_transform = transforms.Compose([
+            test_transform,
+            transforms.ToTensor()
+        ])
 
     if dataset == 'cifar-fs':
         train_dataset = l2l.vision.datasets.CIFARFS(
@@ -136,11 +145,6 @@ def get_few_shot_tasksets(
         RemapLabels(test_dataset),
         ConsecutiveLabels(test_dataset),
     ]
-
-    if 'imagenet' in dataset:
-        train_transforms = [lambda x: Image.fromarray(x)] + train_transforms
-        valid_transforms = [lambda x: Image.fromarray(x)] + valid_transforms
-        test_transforms = [lambda x: Image.fromarray(x)] + test_transforms
 
     # Instantiate the tasksets
     train_tasks = l2l.data.TaskDataset(
