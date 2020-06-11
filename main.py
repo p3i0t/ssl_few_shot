@@ -58,8 +58,8 @@ class FewShotLearner(pl.LightningModule):
         x_support, x_queries = torch.split_with_sizes(x_, split_sizes=[self.n_shots, self.n_queries], dim=2)
         y_support, y_queries = torch.split_with_sizes(y_, split_sizes=[self.n_shots, self.n_queries], dim=2)
 
-        rep_s = self(x_support.view(b, self.n_ways * self.n_shots, c, h, w).contiguous())
-        rep_q = self(x_queries.view(b, self.n_ways * self.n_queries, c, h, w).contiguous())
+        rep_s = self(x_support.contiguous().view(b, self.n_ways * self.n_shots, c, h, w))
+        rep_q = self(x_queries.contiguous().view(b, self.n_ways * self.n_queries, c, h, w))
 
         q = rep_q.view(b, self.n_ways * self.n_queries, self.proj_dim)
         # centroid of same way/class
