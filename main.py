@@ -49,11 +49,13 @@ class FewShotLearner(pl.LightningModule):
         return F.normalize(self.backbone(x.view(-1, c, h, w)), dim=-1)
 
     def _batch_forward(self, batch):
-        x, y = batch
+        x, _ = batch  # there is problem with y, so discard and construct ourselves.
         b, way_shot_query, c, h, w = x.size()
 
         x_ = x.view(b, self.n_ways, (self.n_shots + self.n_queries), c, h, w).contiguous()
-        y_ = y.view(b, self.n_ways, (self.n_shots + self.n_queries)).contiguous()
+        # construct y
+        lbls = torch.arange(self.n_ways).to(x.device).view(1, self.n_ways, 1).contiguous()
+        y_ = lbls.repeat(b, 1, (self.n_shots + self.n_queries)).contiguous()
 
         x_support, x_queries = torch.split_with_sizes(x_, split_sizes=[self.n_shots, self.n_queries], dim=2)
         y_support, y_queries = torch.split_with_sizes(y_, split_sizes=[self.n_shots, self.n_queries], dim=2)
