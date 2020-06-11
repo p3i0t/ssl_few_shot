@@ -44,7 +44,7 @@ def get_few_shot_tasksets(
         transforms.ToTensor(),
     ])
 
-    if dataset == 'cifar10-fs':
+    if dataset == 'cifar-fs':
         train_dataset = l2l.vision.datasets.CIFARFS(
             root=root,
             transform=train_transform,
@@ -60,7 +60,7 @@ def get_few_shot_tasksets(
             transform=test_transform,
             mode='test'
         )
-    elif dataset == 'cifar10-fc100':
+    elif dataset == 'cifar-fc100':
         train_dataset = l2l.vision.datasets.FC100(
             root=root,
             transform=train_transform,
@@ -158,7 +158,7 @@ def get_few_shot_tasksets(
 
 
 if __name__ == '__main__':
-    tasks = get_few_shot_tasksets(dataset='cifar10-fs')
+    tasks = get_few_shot_tasksets(dataset='cifar-fs')
     # batch = tasks.train.sample()
     # x, y = batch
     # print(x.size())

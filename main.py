@@ -7,10 +7,10 @@ from get_tasks import get_few_shot_tasksets
 
 
 class FewShotLearner(pl.LightningModule):
-    def __init__(self, backbone='resnet50x1', root='data', dataset='cifar10-fc100'):
+    def __init__(self, backbone='resnet50x1', root='data', dataset='cifar-fc100'):
         super().__init__()
 
-        assert dataset in ['cifar10-fc100', 'cifar10-fs', 'mini-imagenet', 'tiered-imagenet']
+        assert dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet', 'tiered-imagenet']
 
         self.backbone = eval(backbone)()
         if backbone == 'resnet50x1':
@@ -28,7 +28,6 @@ class FewShotLearner(pl.LightningModule):
         self.n_ways = 5
         self.n_shots = 1
         self.n_queries = 6
-        self.n_aug_support = 1
 
         self.n_train_tasks = 2000
         self.n_test_tasks = 1000
@@ -39,7 +38,7 @@ class FewShotLearner(pl.LightningModule):
             train_ways=self.n_ways,
             test_ways=self.n_ways,
             train_samples=self.n_shots + self.n_queries,
-            test_samples=self.n_shots + self.n_queries,
+            test_samples=self.n_shots + 1,
             n_train_tasks=self.n_train_tasks,
             n_test_tasks=self.n_test_tasks
         )
@@ -48,24 +47,26 @@ class FewShotLearner(pl.LightningModule):
         b, prod, c, h, w = x.size()  # prod = n_way * n_aug
         return F.normalize(self.backbone(x.view(-1, c, h, w)), dim=-1)
 
-    def _batch_forward(self, batch):
+    def _batch_forward(self, batch, train=True):
         x, _ = batch  # there is problem with y, so discard and construct ourselves.
         b, way_shot_query, c, h, w = x.size()
 
-        x_ = x.view(b, self.n_ways, (self.n_shots + self.n_queries), c, h, w).contiguous()
+        n_queries = self.n_queries if train else 1
+        x_ = x.view(b, self.n_ways, (self.n_shots + n_queries), c, h, w).contiguous()
+
         # construct y
         lbls = torch.arange(self.n_ways).to(x.device).view(1, self.n_ways, 1).contiguous()
-        y_ = lbls.repeat(b, 1, (self.n_shots + self.n_queries)).contiguous()
+        y_ = lbls.repeat(b, 1, (self.n_shots + n_queries)).contiguous()
 
-        x_support, x_queries = torch.split_with_sizes(x_, split_sizes=[self.n_shots, self.n_queries], dim=2)
-        y_support, y_queries = torch.split_with_sizes(y_, split_sizes=[self.n_shots, self.n_queries], dim=2)
+        x_support, x_queries = torch.split_with_sizes(x_, split_sizes=[self.n_shots, n_queries], dim=2)
+        y_support, y_queries = torch.split_with_sizes(y_, split_sizes=[self.n_shots, n_queries], dim=2)
 
         rep_s = self(x_support.contiguous().view(b, self.n_ways * self.n_shots, c, h, w))
-        rep_q = self(x_queries.contiguous().view(b, self.n_ways * self.n_queries, c, h, w))
+        rep_q = self(x_queries.contiguous().view(b, self.n_ways * n_queries, c, h, w))
 
-        q = rep_q.view(b, self.n_ways * self.n_queries, self.proj_dim)
+        q = rep_q.view(b, self.n_ways * n_queries, self.proj_dim)
         # centroid of same way/class
-        s = rep_s.view(b, self.n_ways, self.n_shots * self.n_aug_support, self.proj_dim).mean(dim=2)
+        s = rep_s.view(b, self.n_ways, self.n_shots, self.proj_dim).mean(dim=2)
         s = s.clone().permute(0, 2, 1).contiguous()
 
         cosine_scores = q @ s  # batch matrix multiplication
@@ -110,7 +111,7 @@ class FewShotLearner(pl.LightningModule):
         return val_loader
 
     def validation_step(self,  batch, batch_idx):
-        loss, acc = self._batch_forward(batch)
+        loss, acc = self._batch_forward(batch, train=False)
         return {'val_loss': loss, 'val_acc': acc}
 
     def test_dataloader(self):
@@ -122,7 +123,7 @@ class FewShotLearner(pl.LightningModule):
         return test_loader
 
     def test_step(self,  batch, batch_idx):
-        loss, acc = self._batch_forward(batch)
+        loss, acc = self._batch_forward(batch, train=False)
         return {'test_loss': loss, 'test_acc': acc}
 
     def test_end(self, outputs):
@@ -137,7 +138,7 @@ class FewShotLearner(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    fewshot_learner = FewShotLearner(backbone='resnet50x1')
+    fewshot_learner = FewShotLearner(backbone='resnet50x1', dataset='cifar-fs')
     trainer = pl.Trainer(
         gpus=2,
         max_epochs=1,
