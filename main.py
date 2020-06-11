@@ -107,6 +107,10 @@ class FewShotLearner(pl.LightningModule):
         )
         return val_loader
 
+    def validation_step(self,  batch, batch_idx):
+        loss, acc = self._batch_forward(batch)
+        return {'val_loss': loss, 'val_acc': acc}
+
     def test_dataloader(self):
         test_loader = torch.utils.data.DataLoader(
             dataset=self.tasksets.test,
