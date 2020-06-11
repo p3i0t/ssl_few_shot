@@ -137,6 +137,11 @@ def get_few_shot_tasksets(
         ConsecutiveLabels(test_dataset),
     ]
 
+    if 'imagenet' in dataset:
+        train_transforms = [lambda x: Image.fromarray(x)] + train_transforms
+        valid_transforms = [lambda x: Image.fromarray(x)] + valid_transforms
+        test_transforms = [lambda x: Image.fromarray(x)] + test_transforms
+
     # Instantiate the tasksets
     train_tasks = l2l.data.TaskDataset(
         dataset=train_dataset,
