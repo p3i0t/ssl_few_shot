@@ -1,4 +1,4 @@
-
+import os
 import hydra
 from omegaconf import DictConfig
 
@@ -44,7 +44,8 @@ class BaseClassifierLearner(pl.LightningModule):
         elif backbone == 'resnet50x4':
             checkpoint_path = 'resnet50-4x.pth'
 
-        state = torch.load(checkpoint_path, map_location='cpu')
+        prefix = '../'
+        state = torch.load(os.path.join(prefix, checkpoint_path), map_location='cpu')
         self.backbone.load_state_dict(state['state_dict'])
 
         # replace last linear layer
