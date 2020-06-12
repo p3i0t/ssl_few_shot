@@ -22,6 +22,7 @@ n_classes_dict = {
     'tiered-imagenet': [351, 97, 160],
 }
 
+
 class BaseClassifierLearner(pl.LightningModule):
     def __init__(self, backbone='resnet50x1', root='data', dataset='cifar-fc100', train_mode='train_val'):
         super().__init__()
@@ -44,7 +45,7 @@ class BaseClassifierLearner(pl.LightningModule):
         elif backbone == 'resnet50x4':
             checkpoint_path = 'resnet50-4x.pth'
 
-        prefix = '../'
+        prefix = hydra.utils.to_absolute_path('.')
         state = torch.load(os.path.join(prefix, checkpoint_path), map_location='cpu')
         self.backbone.load_state_dict(state['state_dict'])
 
