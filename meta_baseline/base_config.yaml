@@ -1,0 +1,25 @@
+hydra:
+  job_logging:
+#    formatters:
+#      simple:
+#        format: '[]'
+    root:
+      handlers: [file, console]  # logging to file only.
+  run:
+    #dir: logs/${dataset}
+    dir: logs/${dataset}
+
+
+dataset: cifar-fc100  # cifar-fs, mini-imagenet, tiered-imagenet
+data_dir: data
+
+# model
+backbone: resnet50x1 # or resnet34, resnet50
+
+# train options
+train_mode: train_val
+seed: 42 # sacred handles automatic seeding when passed in the config
+batch_size: 64
+epochs: 20
+log_interval: 50
+

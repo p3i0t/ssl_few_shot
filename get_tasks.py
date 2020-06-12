@@ -9,28 +9,10 @@ from collections import namedtuple
 BenchmarkTasksets = namedtuple('BenchmarkTasksets', ('train', 'validation', 'test'))
 
 
-def get_few_shot_tasksets(
+def get_normal_tasksets(
         root='data',
-        dataset='cifar10-fc100',
-        train_ways=5,
-        train_samples=10,
-        test_ways=5,
-        test_samples=10,
-        n_train_tasks=2000,
-        n_test_tasks=1000
+        dataset='cifar10-fc100'
     ):
-    """
-    Fetch the train, valid, test meta tasks of given dataset.
-    :param root: data directory.
-    :param dataset: name of dataset.
-    :param train_ways: number of ways of few-shot training.
-    :param train_samples: number of each-way samples for a training task.
-    :param test_ways: number of ways of few-shot evaluation and testing.
-    :param test_samples: number of each-way samples for a valid or test task.
-    :param n_train_tasks: total number of train tasks.
-    :param n_test_tasks: total number of valid and test tasks.
-    :return:
-    """
     if dataset == 'mini-imagenet':
         train_transform = transforms.Compose([
             transforms.ToPILImage(mode='RGB'),
@@ -134,6 +116,33 @@ def get_few_shot_tasksets(
     else:
         raise Exception("dataset {} not available.".format(dataset))
 
+    return train_dataset, valid_dataset, test_dataset
+
+
+def get_few_shot_tasksets(
+        root='data',
+        dataset='cifar10-fc100',
+        train_ways=5,
+        train_samples=10,
+        test_ways=5,
+        test_samples=10,
+        n_train_tasks=2000,
+        n_test_tasks=1000
+    ):
+    """
+    Fetch the train, valid, test meta tasks of given dataset.
+    :param root: data directory.
+    :param dataset: name of dataset.
+    :param train_ways: number of ways of few-shot training.
+    :param train_samples: number of each-way samples for a training task.
+    :param test_ways: number of ways of few-shot evaluation and testing.
+    :param test_samples: number of each-way samples for a valid or test task.
+    :param n_train_tasks: total number of train tasks.
+    :param n_test_tasks: total number of valid and test tasks.
+    :return:
+    """
+
+    train_dataset, valid_dataset, test_dataset = get_normal_tasksets(root=root, dataset=dataset)
     train_dataset = l2l.data.MetaDataset(train_dataset)
     valid_dataset = l2l.data.MetaDataset(valid_dataset)
     test_dataset = l2l.data.MetaDataset(test_dataset)
@@ -182,12 +191,24 @@ def get_few_shot_tasksets(
 
 if __name__ == '__main__':
     tasks = get_few_shot_tasksets(dataset='cifar-fs')
+    tasks = get_normal_tasksets(dataset='cifar-fs')
+    # tasks = get_normal_tasksets(dataset='cifar-fc100')
     # batch = tasks.train.sample()
     # x, y = batch
     # print(x.size())
     # print(y.size())
     # print(y)
-    x, y = tasks.train[0]
-    print(x.size())
-    print(y.size())
+    # x, y = tasks.train[0]
+    # print(x.size())
+    # print(y.size())
+    from torch.utils.data import ConcatDataset
+
+    import torch.utils.data
+    dataset = ConcatDataset([tasks[1], tasks[0]])
+    print(len(tasks[0]))
+    print(len(tasks[1]))
+    print(len(dataset))
+    loader = torch.utils.data.DataLoader(dataset, batch_size=100)
+    for x, y in loader:
+        print(x.size(), y.size())
 
