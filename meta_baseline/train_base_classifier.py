@@ -1,6 +1,5 @@
 import os
-import hydra
-from omegaconf import DictConfig
+import argparse
 
 import torch
 import torch.nn as nn
@@ -109,8 +108,17 @@ class BaseClassifierLearner(pl.LightningModule):
         return {'avg_test_loss': avg_loss, 'avg_test_acc': avg_acc, 'log': logs, 'progress_bar': logs}
 
 
-@hydra.main(config_path='base_config.yaml')
-def train(args: DictConfig) -> None:
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser("Meta-Baseline")
+    parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+    parser.add_argument('--dataset', type=str, default='cifar-fs',
+                        help='one of [cifar-fs, cifar-fc100, mini-imagenet, tiered-imagenet]')
+    parser.add_argument('--backbone', type=str, default='resnet50x1', help='name of backbone')
+    parser.add_argument('--train_mode', type=str, default='train_val', help='whether use valid in training')
+    parser.add_argument('--gpus', type=int, default=2, help='gpu device id')
+    parser.add_argument('--epochs', type=int, default=20, help='num of training epochs')
+    args = parser.parse_args()
+
     base_classifier = BaseClassifierLearner(backbone=args.backbone, dataset=args.dataset)
     trainer = pl.Trainer(
         gpus=2,
@@ -123,7 +131,3 @@ def train(args: DictConfig) -> None:
     trainer.fit(base_classifier)
     trainer.save_checkpoint('{}-{}-{}.pt'.format(args.backbone, args.dataset, args.train_mode))
     trainer.test()
-
-
-if __name__ == '__main__':
-    train()
