@@ -14,6 +14,13 @@ sys.path.append("..")  # Adds higher directory to python modules path.
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 from get_tasks import get_normal_tasksets
 
+# number of train, valid, test sets in meta-dataset.
+n_classes_dict = {
+    'cifar-fc100': [64, 16, 20],
+    'cifar-fs': [60, 20, 20],
+    'mini-imagenet': [64, 16, 20],
+    'tiered-imagenet': [351, 97, 160],
+}
 
 class BaseClassifierLearner(pl.LightningModule):
     def __init__(self, backbone='resnet50x1', root='data', dataset='cifar-fc100', train_mode='train_val'):
@@ -22,10 +29,10 @@ class BaseClassifierLearner(pl.LightningModule):
         self.train_set, self.valid_set, self.test_set = get_normal_tasksets(root, dataset)
 
         if train_mode == 'train_val':
-            self.n_classes = len(set(self.train_set.targets)) + len(set(self.valid_set.targets))
+            self.n_classes = sum(n_classes_dict[dataset][:2])  # n_classes of train and valid
             self.train_set = ConcatDataset([self.train_set, self.valid_set])
         elif train_mode == 'train':
-            self.n_classes = len(set(self.train_set.targets))
+            self.n_classes = n_classes_dict[dataset][0]  # n_classes of train
         else:
             raise Exception('train mode not available.')
 
