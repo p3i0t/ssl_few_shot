@@ -101,4 +101,7 @@ if __name__ == '__main__':
 
     )
     trainer.fit(base_classifier)
-    trainer.save_checkpoint('{}-{}-{}.pt'.format(args.backbone, args.dataset, args.train_mode))
+    torch.save(
+        base_classifier.backbone.state_dict(),
+        '{}-{}-{}.pt'.format(args.backbone, args.dataset, args.train_mode)
+    )
