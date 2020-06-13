@@ -61,7 +61,7 @@ class FewShotLearner(pl.LightningModule):
 
         q = rep_q.view(b, self.hparams.n_ways * n_queries, self.proj_dim)
         # centroid of same way/class
-        s = rep_s.view(b, self.hparams.n_ways, self.n_shots, self.proj_dim).mean(dim=2)
+        s = rep_s.view(b, self.hparams.n_ways, self.hparams.n_shots, self.proj_dim).mean(dim=2)
         s = s.clone().permute(0, 2, 1).contiguous()
 
         cosine_scores = q @ s  # batch matrix multiplication
