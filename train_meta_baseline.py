@@ -136,6 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=1, help='num of training epochs')
     args = parser.parse_args()
 
+    args = argparse.Namespace(args)
     fewshot_learner = FewShotLearner(args)
     trainer = pl.Trainer(
         gpus=args.gpus,
