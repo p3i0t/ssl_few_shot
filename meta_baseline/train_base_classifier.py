@@ -8,8 +8,6 @@ from torch.utils.data import ConcatDataset
 
 import pytorch_lightning as pl
 
-import sys
-sys.path.append("..")  # Adds higher directory to python modules path.
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
 from get_tasks import get_normal_tasksets
 
@@ -44,7 +42,7 @@ class BaseClassifierLearner(pl.LightningModule):
         elif backbone == 'resnet50x4':
             checkpoint_path = 'resnet50-4x.pth'
 
-        prefix = hydra.utils.to_absolute_path('.')
+        prefix = '..'
         state = torch.load(os.path.join(prefix, checkpoint_path), map_location='cpu')
         self.backbone.load_state_dict(state['state_dict'])
 
