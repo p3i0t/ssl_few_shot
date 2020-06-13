@@ -79,31 +79,6 @@ class BaseClassifierLearner(pl.LightningModule):
 
         return {'avg_loss': avg_loss, 'avg_acc': avg_acc, 'log': logs, 'progress_bar': logs}
 
-    def test_dataloader(self):
-        test_loader = torch.utils.data.DataLoader(
-            dataset=self.test_set,
-            batch_size=100,
-            drop_last=False,
-        )
-        return test_loader
-
-    def test_step(self,  batch, batch_idx):
-        x, y = batch
-        logits = self(x)
-        loss = F.cross_entropy(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean()
-        return {'test_loss': loss, 'test_acc': acc}
-
-    def test_end(self, outputs):
-        # OPTIONAL
-        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-
-        avg_acc = torch.stack([x['test_acc'] for x in outputs]).mean()
-
-        logs = {'test_loss': avg_loss, 'test_acc': avg_acc}
-
-        return {'avg_test_loss': avg_loss, 'avg_test_acc': avg_acc, 'log': logs, 'progress_bar': logs}
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Meta-Baseline")
@@ -118,7 +93,7 @@ if __name__ == '__main__':
 
     base_classifier = BaseClassifierLearner(backbone=args.backbone, dataset=args.dataset)
     trainer = pl.Trainer(
-        gpus=2,
+        gpus=args.gpus,
         max_epochs=args.epochs,
         distributed_backend='ddp',
         precision=16,
@@ -127,4 +102,3 @@ if __name__ == '__main__':
     )
     trainer.fit(base_classifier)
     trainer.save_checkpoint('{}-{}-{}.pt'.format(args.backbone, args.dataset, args.train_mode))
-    trainer.test()
