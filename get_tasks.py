@@ -1,4 +1,5 @@
 from torchvision import transforms
+from torch.utils.data import ConcatDataset
 
 import learn2learn as l2l
 from PIL import Image
@@ -6,12 +7,13 @@ from PIL import Image
 from learn2learn.data.transforms import NWays, KShots, LoadData, RemapLabels, ConsecutiveLabels
 
 from collections import namedtuple
-BenchmarkTasksets = namedtuple('BenchmarkTasksets', ('train', 'validation', 'test'))
+BenchmarkTasksets = namedtuple('BenchmarkTasksets', ('train', 'test'))
 
 
 def get_normal_tasksets(
         root='data',
-        dataset='cifar10-fc100'
+        dataset='cifar10-fc100',
+        train_mode='train_val'
     ):
     if dataset == 'mini-imagenet':
         train_transform = transforms.Compose([
@@ -52,11 +54,13 @@ def get_normal_tasksets(
             transform=train_transform,
             mode='train'
         )
-        valid_dataset = l2l.vision.datasets.CIFARFS(
-            root=root,
-            transform=test_transform,
-            mode='validation'
-        )
+        if train_mode == 'train_val':
+            valid_dataset = l2l.vision.datasets.CIFARFS(
+                root=root,
+                transform=train_transform,
+                mode='validation'
+            )
+            train_dataset = ConcatDataset([train_dataset, valid_dataset])
         test_dataset = l2l.vision.datasets.CIFARFS(
             root=root,
             transform=test_transform,
@@ -68,11 +72,14 @@ def get_normal_tasksets(
             transform=train_transform,
             mode='train'
         )
-        valid_dataset = l2l.vision.datasets.FC100(
-            root=root,
-            transform=test_transform,
-            mode='validation'
-        )
+        if train_mode == 'train_val':
+            valid_dataset = l2l.vision.datasets.FC100(
+                root=root,
+                transform=train_transform,
+                mode='validation'
+            )
+            train_dataset = ConcatDataset([train_dataset, valid_dataset])
+
         test_dataset = l2l.vision.datasets.CIFARFS(
             root=root,
             transform=test_transform,
@@ -84,11 +91,13 @@ def get_normal_tasksets(
             transform=train_transform,
             mode='train'
         )
-        valid_dataset = l2l.vision.datasets.MiniImagenet(
-            root=root,
-            transform=test_transform,
-            mode='validation'
-        )
+        if train_mode == 'train_val':
+            valid_dataset = l2l.vision.datasets.MiniImagenet(
+                root=root,
+                transform=train_transform,
+                mode='validation'
+            )
+            train_dataset = ConcatDataset([train_dataset, valid_dataset])
         test_dataset = l2l.vision.datasets.MiniImagenet(
             root=root,
             transform=test_transform,
@@ -101,12 +110,14 @@ def get_normal_tasksets(
             mode='train',
             download=True
         )
-        valid_dataset = l2l.vision.datasets.TieredImagenet(
-            root=root,
-            transform=test_transform,
-            mode='validation',
-            download=True
-        )
+        if train_mode == 'train_val':
+            valid_dataset = l2l.vision.datasets.TieredImagenet(
+                root=root,
+                transform=train_transform,
+                mode='validation',
+                download=True
+            )
+            train_dataset = ConcatDataset([train_dataset, valid_dataset])
         test_dataset = l2l.vision.datasets.TieredImagenet(
             root=root,
             transform=test_transform,
@@ -116,7 +127,7 @@ def get_normal_tasksets(
     else:
         raise Exception("dataset {} not available.".format(dataset))
 
-    return train_dataset, valid_dataset, test_dataset
+    return train_dataset, test_dataset
 
 
 def get_few_shot_tasksets(
@@ -127,7 +138,8 @@ def get_few_shot_tasksets(
         test_ways=5,
         test_samples=10,
         n_train_tasks=2000,
-        n_test_tasks=1000
+        n_test_tasks=1000,
+        train_mode='train_val',
     ):
     """
     Fetch the train, valid, test meta tasks of given dataset.
@@ -139,12 +151,12 @@ def get_few_shot_tasksets(
     :param test_samples: number of each-way samples for a valid or test task.
     :param n_train_tasks: total number of train tasks.
     :param n_test_tasks: total number of valid and test tasks.
+    :param train_mode: whether use valid set for training.
     :return:
     """
 
-    train_dataset, valid_dataset, test_dataset = get_normal_tasksets(root=root, dataset=dataset)
+    train_dataset, test_dataset = get_normal_tasksets(root=root, dataset=dataset, train_mode=train_mode)
     train_dataset = l2l.data.MetaDataset(train_dataset)
-    valid_dataset = l2l.data.MetaDataset(valid_dataset)
     test_dataset = l2l.data.MetaDataset(test_dataset)
 
     train_transforms = [
@@ -154,13 +166,7 @@ def get_few_shot_tasksets(
         RemapLabels(train_dataset),
         ConsecutiveLabels(train_dataset),
     ]
-    valid_transforms = [
-        NWays(valid_dataset, test_ways),
-        KShots(valid_dataset, test_samples),
-        LoadData(valid_dataset),
-        ConsecutiveLabels(valid_dataset),
-        RemapLabels(valid_dataset),
-    ]
+
     test_transforms = [
         NWays(test_dataset, test_ways),
         KShots(test_dataset, test_samples),
@@ -175,18 +181,13 @@ def get_few_shot_tasksets(
         task_transforms=train_transforms,
         num_tasks=n_train_tasks,
     )
-    validation_tasks = l2l.data.TaskDataset(
-        dataset=valid_dataset,
-        task_transforms=valid_transforms,
-        num_tasks=n_test_tasks,
-    )
     test_tasks = l2l.data.TaskDataset(
         dataset=test_dataset,
         task_transforms=test_transforms,
         num_tasks=n_test_tasks,
     )
 
-    return BenchmarkTasksets(train_tasks, validation_tasks, test_tasks)
+    return BenchmarkTasksets(train_tasks, test_tasks)
 
 
 if __name__ == '__main__':
@@ -205,10 +206,14 @@ if __name__ == '__main__':
 
     import torch.utils.data
     dataset = ConcatDataset([tasks[1], tasks[0]])
-    print(len(tasks[0]))
-    print(len(tasks[1]))
-    print(len(dataset))
-    loader = torch.utils.data.DataLoader(dataset, batch_size=100)
-    for x, y in loader:
-        print(x.size(), y.size())
+    # print(len(tasks[0]))
+    # print(len(tasks[1]))
+    # print(len(dataset))
+    # loader = torch.utils.data.DataLoader(dataset, batch_size=100)
+    # for x, y in loader:
+    #     print(x.size(), y.size())
+    dset = l2l.data.MetaDataset(dataset)
+    tsk = l2l.data.TaskDataset(dset)
+    batch = tsk.sample()
+    print(batch)
 

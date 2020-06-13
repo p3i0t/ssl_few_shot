@@ -24,11 +24,10 @@ class BaseClassifierLearner(pl.LightningModule):
     def __init__(self, backbone='resnet50x1', root='data', dataset='cifar-fc100', train_mode='train_val'):
         super().__init__()
         assert dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet', 'tiered-imagenet']
-        self.train_set, self.valid_set, self.test_set = get_normal_tasksets(root, dataset)
+        self.train_set, self.test_set = get_normal_tasksets(root, dataset, train_mode=train_mode)
 
         if train_mode == 'train_val':
             self.n_classes = sum(n_classes_dict[dataset][:2])  # n_classes of train and valid
-            self.train_set = ConcatDataset([self.train_set, self.valid_set])
         elif train_mode == 'train':
             self.n_classes = n_classes_dict[dataset][0]  # n_classes of train
         else:
@@ -82,7 +81,7 @@ class BaseClassifierLearner(pl.LightningModule):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Meta-Baseline")
-    parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+    parser.add_argument('--data', type=str, default='data', help='location of the data corpus')
     parser.add_argument('--dataset', type=str, default='cifar-fs',
                         help='one of [cifar-fs, cifar-fc100, mini-imagenet, tiered-imagenet]')
     parser.add_argument('--backbone', type=str, default='resnet50x1', help='name of backbone')
@@ -91,7 +90,13 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=20, help='num of training epochs')
     args = parser.parse_args()
 
-    base_classifier = BaseClassifierLearner(backbone=args.backbone, dataset=args.dataset)
+    base_classifier = BaseClassifierLearner(
+        backbone=args.backbone,
+        dataset=args.dataset,
+        root=args.data,
+        train_mode=args.train_mode
+    )
+
     trainer = pl.Trainer(
         gpus=args.gpus,
         max_epochs=args.epochs,
