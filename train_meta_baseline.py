@@ -23,7 +23,7 @@ class FewShotLearner(pl.LightningModule):
         checkpoint_path = '{}-{}-{}.pt'.format(backbone, dataset, train_mode)
 
         state = torch.load(checkpoint_path, map_location='cpu')
-        self.backbone.load_state_dict(state['state_dict'], strict=False)  # last layer removed, strict=False
+        self.backbone.load_state_dict(state, strict=False)  # last layer removed, strict=False
 
         self.n_ways = n_ways
         self.n_shots = n_shots
