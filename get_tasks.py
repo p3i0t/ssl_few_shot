@@ -80,7 +80,7 @@ def get_normal_tasksets(
             )
             train_dataset = ConcatDataset([train_dataset, valid_dataset])
 
-        test_dataset = l2l.vision.datasets.CIFARFS(
+        test_dataset = l2l.vision.datasets.FC100(
             root=root,
             transform=test_transform,
             mode='test'

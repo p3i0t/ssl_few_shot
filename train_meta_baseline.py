@@ -157,6 +157,7 @@ if __name__ == '__main__':
         max_epochs=args.epochs,
         distributed_backend='ddp',
         precision=16,
+        weights_summary=None,
     )
     trainer.fit(fewshot_learner)
     trainer.test()
