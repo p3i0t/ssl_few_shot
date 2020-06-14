@@ -78,6 +78,8 @@ class FewShotLearner(pl.LightningModule):
             dataset=self.tasksets.train,
             batch_size=20,
             drop_last=False,
+            num_workers=8,
+            pin_memory=True
         )
         return train_loader
 
@@ -101,6 +103,8 @@ class FewShotLearner(pl.LightningModule):
             dataset=self.tasksets.test,
             batch_size=20,
             drop_last=False,
+            num_workers=8,
+            pin_memory=True
         )
         return test_loader
 

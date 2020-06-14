@@ -21,24 +21,27 @@ n_classes_dict = {
 
 
 class BaseClassifierLearner(pl.LightningModule):
-    def __init__(self, backbone='resnet50x1', root='data', dataset='cifar-fc100', train_mode='train_val'):
+    def __init__(self, args):
         super().__init__()
-        assert dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet', 'tiered-imagenet']
-        self.train_set, self.test_set = get_normal_tasksets(root, dataset, train_mode=train_mode)
+        self.hparams = args
+        assert self.hparams.dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet', 'tiered-imagenet']
+        self.train_set, self.test_set = get_normal_tasksets(self.hparams.root,
+                                                            self.hparams.dataset,
+                                                            train_mode=self.hparams.train_mode)
 
-        if train_mode == 'train_val':
-            self.n_classes = sum(n_classes_dict[dataset][:2])  # n_classes of train and valid
-        elif train_mode == 'train':
-            self.n_classes = n_classes_dict[dataset][0]  # n_classes of train
+        if self.hparams.train_mode == 'train_val':
+            self.n_classes = sum(n_classes_dict[self.hparams.dataset][:2])  # n_classes of train and valid
+        elif self.hparams.train_mode == 'train':
+            self.n_classes = n_classes_dict[self.hparams.dataset][0]  # n_classes of train
         else:
             raise Exception('train mode not available.')
 
-        self.backbone = eval(backbone)()
-        if backbone == 'resnet50x1':
+        self.backbone = eval(self.hparams.backbone)()
+        if self.hparams.backbone == 'resnet50x1':
             checkpoint_path = 'resnet50-1x.pth'
-        elif backbone == 'resnet50x2':
+        elif self.hparams.backbone == 'resnet50x2':
             checkpoint_path = 'resnet50-2x.pth'
-        elif backbone == 'resnet50x4':
+        elif self.hparams.backbone == 'resnet50x4':
             checkpoint_path = 'resnet50-4x.pth'
 
         state = torch.load(checkpoint_path, map_location='cpu')
@@ -58,6 +61,8 @@ class BaseClassifierLearner(pl.LightningModule):
             dataset=self.train_set,
             batch_size=64,
             drop_last=False,
+            num_workers=8,
+            pin_memory=True
         )
         return train_loader
 
@@ -91,12 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=1, help='num of training epochs')
     args = parser.parse_args()
 
-    base_classifier = BaseClassifierLearner(
-        backbone=args.backbone,
-        dataset=args.dataset,
-        root=args.data,
-        train_mode=args.train_mode
-    )
+    base_classifier = BaseClassifierLearner(args)
 
     trainer = pl.Trainer(
         gpus=args.gpus,
