@@ -86,9 +86,9 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='cifar-fs',
                         help='one of [cifar-fs, cifar-fc100, mini-imagenet, tiered-imagenet]')
     parser.add_argument('--backbone', type=str, default='resnet50x1', help='name of backbone')
-    parser.add_argument('--train_mode', type=str, default='train_val', help='whether use valid in training')
+    parser.add_argument('--train_mode', type=str, default='train', help='whether use valid in training')
     parser.add_argument('--gpus', type=int, default=2, help='gpu device id')
-    parser.add_argument('--epochs', type=int, default=20, help='num of training epochs')
+    parser.add_argument('--epochs', type=int, default=1, help='num of training epochs')
     args = parser.parse_args()
 
     base_classifier = BaseClassifierLearner(

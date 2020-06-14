@@ -95,7 +95,8 @@ class FewShotLearner(pl.LightningModule):
 
         return {'avg_loss': avg_loss, 'avg_acc': avg_acc, 'log': logs, 'progress_bar': logs}
 
-    def test_dataloader(self):
+    # test regularly for some interval
+    def val_dataloader(self):
         test_loader = torch.utils.data.DataLoader(
             dataset=self.tasksets.test,
             batch_size=20,
@@ -103,11 +104,11 @@ class FewShotLearner(pl.LightningModule):
         )
         return test_loader
 
-    def test_step(self,  batch, batch_idx):
+    def validation_step(self,  batch, batch_idx):
         loss, acc = self._batch_forward(batch, train=False)
         return {'test_loss': loss, 'test_acc': acc}
 
-    def test_epoch_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         # OPTIONAL
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
 
@@ -141,6 +142,6 @@ if __name__ == '__main__':
         distributed_backend='ddp',
         precision=16,
         weights_summary=None,
+        val_check_interval=1000/args.n_train_tasks  # test for every 1000 tasks.
     )
     trainer.fit(fewshot_learner)
-    trainer.test()
