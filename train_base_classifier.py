@@ -63,6 +63,7 @@ class BaseClassifierLearner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        y = y.long()
         logits = self(x)
         loss = F.cross_entropy(logits, y)
         acc = (logits.argmax(dim=1) == y).float().mean()
