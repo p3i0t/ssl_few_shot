@@ -20,12 +20,7 @@ class FewShotLearner(pl.LightningModule):
         self.proj_dim = self.backbone.fc.in_features
         self.backbone.fc = nn.Identity()  # remove final fully connected layer
 
-        if self.hparams.backbone == 'resnet50x1':
-            checkpoint_path = 'resnet50-1x.pth'
-        elif self.hparams.backbone == 'resnet50x2':
-            checkpoint_path = 'resnet50-2x.pth'
-        elif self.hparams.backbone == 'resnet50x4':
-            checkpoint_path = 'resnet50-4x.pth'
+        checkpoint_path = '{}-{}-{}.pt'.format(self.hparams.backbone, self.hparams.dataset, self.hparams.train_mode)
 
         state = torch.load(checkpoint_path, map_location='cpu')
         self.backbone.load_state_dict(state, strict=False)  # last layer removed, strict=False
