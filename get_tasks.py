@@ -21,7 +21,7 @@ def get_normal_tasksets(
             # transforms.Resize(160, interpolation=Image.BILINEAR),
             # transforms.RandomCrop(128),
             transforms.RandomResizedCrop(128),
-            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
             # transforms.RandomHorizontalFlip(),
             transforms.ToTensor()
         ])
@@ -31,7 +31,6 @@ def get_normal_tasksets(
             # transforms.Resize(160, interpolation=Image.BILINEAR),
             # transforms.CenterCrop(128),
             transforms.Resize(128),
-            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
             transforms.ToTensor()
         ])
     else:

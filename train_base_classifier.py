@@ -87,7 +87,7 @@ class BaseClassifierLearner(pl.LightningModule):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Meta-Baseline")
-    parser.add_argument('--data', type=str, default='data', help='location of the data corpus')
+    parser.add_argument('--root', type=str, default='data', help='location of the data corpus')
     parser.add_argument('--dataset', type=str, default='cifar-fs',
                         help='one of [cifar-fs, cifar-fc100, mini-imagenet, tiered-imagenet]')
     parser.add_argument('--backbone', type=str, default='resnet50x1', help='name of backbone')
