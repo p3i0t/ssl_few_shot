@@ -9,7 +9,7 @@ from torch.utils.data import ConcatDataset
 import pytorch_lightning as pl
 
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
-from _get_tasks import get_normal_tasksets
+from get_tasks import get_normal_tasksets
 
 # number of train, valid, test sets in meta-dataset.
 n_classes_dict = {
