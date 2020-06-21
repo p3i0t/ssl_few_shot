@@ -9,7 +9,7 @@ from torch.utils.data import ConcatDataset
 import pytorch_lightning as pl
 
 from resnet_wider import resnet50x1, resnet50x2, resnet50x4
-from get_tasks import get_normal_tasksets
+from _get_tasks import get_normal_tasksets
 
 # number of train, valid, test sets in meta-dataset.
 n_classes_dict = {
@@ -25,16 +25,15 @@ class BaseClassifierLearner(pl.LightningModule):
         super().__init__()
         self.hparams = args
         assert self.hparams.dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet', 'tiered-imagenet']
-        self.train_set, self.test_set = get_normal_tasksets(self.hparams.root,
-                                                            self.hparams.dataset,
-                                                            train_mode=self.hparams.train_mode)
+        self.train_set, self.val_set, self.test_set = get_normal_tasksets(self.hparams.root, self.hparams.dataset)
 
-        if self.hparams.train_mode == 'train_val':
-            self.n_classes = sum(n_classes_dict[self.hparams.dataset][:2])  # n_classes of train and valid
-        elif self.hparams.train_mode == 'train':
-            self.n_classes = n_classes_dict[self.hparams.dataset][0]  # n_classes of train
-        else:
-            raise Exception('train mode not available.')
+        self.n_classes = n_classes_dict[self.hparams.dataset][0]  # n_classes of train
+        # if self.hparams.train_mode == 'train_val':
+        #     self.n_classes = sum(n_classes_dict[self.hparams.dataset][:2])  # n_classes of train and valid
+        # elif self.hparams.train_mode == 'train':
+        #     self.n_classes = n_classes_dict[self.hparams.dataset][0]  # n_classes of train
+        # else:
+        #     raise Exception('train mode not available.')
 
         self.backbone = eval(self.hparams.backbone)()
         if self.hparams.backbone == 'resnet50x1':
@@ -77,12 +76,9 @@ class BaseClassifierLearner(pl.LightningModule):
     def training_epoch_end(self, outputs):
         # OPTIONAL
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-
         avg_acc = torch.stack([x['acc'] for x in outputs]).mean()
 
-        logs = {'avg_loss': avg_loss, 'avg_acc': avg_acc}
-
-        return {'avg_loss': avg_loss, 'avg_acc': avg_acc, 'log': logs, 'progress_bar': logs}
+        return {'loss': avg_loss, 'acc': avg_acc}
 
 
 if __name__ == '__main__':
@@ -104,10 +100,9 @@ if __name__ == '__main__':
         distributed_backend='ddp',
         precision=16,
         weights_summary=None,  # close model summary
-
     )
     trainer.fit(base_classifier)
     torch.save(
         base_classifier.backbone.state_dict(),
-        '{}-{}-{}.pt'.format(args.backbone, args.dataset, args.train_mode)
+        '{}-{}.pt'.format(args.backbone, args.dataset)
     )

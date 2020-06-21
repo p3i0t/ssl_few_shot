@@ -14,13 +14,13 @@ class FewShotLearner(pl.LightningModule):
         super().__init__()
 
         self.hparams = args
-        assert self.hparams.dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet', 'tiered-imagenet']
+        assert self.hparams.dataset in ['cifar-fc100', 'cifar-fs', 'mini-imagenet']
 
         self.backbone = eval(self.hparams.backbone)()
         self.proj_dim = self.backbone.fc.in_features
         self.backbone.fc = nn.Identity()  # remove final fully connected layer
 
-        checkpoint_path = '{}-{}-{}.pt'.format(self.hparams.backbone, self.hparams.dataset, self.hparams.train_mode)
+        checkpoint_path = '{}-{}.pt'.format(self.hparams.backbone, self.hparams.dataset)
 
         state = torch.load(checkpoint_path, map_location='cpu')
         self.backbone.load_state_dict(state, strict=False)  # last layer removed, strict=False
@@ -85,20 +85,41 @@ class FewShotLearner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, acc = self._batch_forward(batch)
+        self.logger.experiment.add_scalar('Loss/train', loss.item(), batch_idx)
+        self.logger.experiment.add_scalar('Accuracy/train', acc.item(), batch_idx)
         return {'loss': loss, 'acc': acc}
 
     def training_epoch_end(self, outputs):
         # OPTIONAL
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-
         avg_acc = torch.stack([x['acc'] for x in outputs]).mean()
 
-        logs = {'avg_loss': avg_loss, 'avg_acc': avg_acc}
+        return {'train_loss': avg_loss, 'train_acc': avg_acc}
 
-        return {'avg_loss': avg_loss, 'avg_acc': avg_acc, 'log': logs, 'progress_bar': logs}
-
-    # test regularly for some interval
     def val_dataloader(self):
+        val_loader = torch.utils.data.DataLoader(
+            dataset=self.tasksets.valid,
+            batch_size=20,
+            drop_last=False,
+            num_workers=8,
+            pin_memory=True
+        )
+        return val_loader
+
+    def validation_step(self,  batch, batch_idx):
+        loss, acc = self._batch_forward(batch, train=False)
+        self.logger.experiment.add_scalar('Loss/valid', loss.item(), batch_idx)
+        self.logger.experiment.add_scalar('Accuracy/valid', acc.item(), batch_idx)
+        return {'val_loss': loss, 'val_acc': acc}
+
+    def validation_epoch_end(self, outputs):
+        # OPTIONAL
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_acc = torch.stack([x['val_acc'] for x in outputs]).mean()
+
+        return {'val_loss': avg_loss, 'val_acc': avg_acc}
+
+    def test_dataloader(self):
         test_loader = torch.utils.data.DataLoader(
             dataset=self.tasksets.test,
             batch_size=20,
@@ -108,19 +129,17 @@ class FewShotLearner(pl.LightningModule):
         )
         return test_loader
 
-    def validation_step(self,  batch, batch_idx):
+    def test_step(self,  batch, batch_idx):
         loss, acc = self._batch_forward(batch, train=False)
+        self.logger.experiment.add_scalar('Loss/test', loss.item(), batch_idx)
+        self.logger.experiment.add_scalar('Accuracy/test', acc.item(), batch_idx)
         return {'test_loss': loss, 'test_acc': acc}
 
-    def validation_epoch_end(self, outputs):
+    def test_epoch_end(self, outputs):
         # OPTIONAL
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-
         avg_acc = torch.stack([x['test_acc'] for x in outputs]).mean()
-
-        logs = {'test_loss': avg_loss, 'test_acc': avg_acc}
-
-        return {'avg_test_loss': avg_loss, 'avg_test_acc': avg_acc, 'log': logs, 'progress_bar': logs}
+        return {'test_loss': avg_loss, 'test_acc': avg_acc}
 
 
 if __name__ == '__main__':
@@ -136,16 +155,24 @@ if __name__ == '__main__':
     parser.add_argument('--n_queries', type=int, default=5, help='n_queries')
     parser.add_argument('--n_train_tasks', type=int, default=3000, help='n_train_tasks')
     parser.add_argument('--n_test_tasks', type=int, default=1000, help='n_train_tasks')
+    parser.add_argument('--n_val_interval', type=int, default=100, help='n_train_tasks')
     parser.add_argument('--epochs', type=int, default=1, help='num of training epochs')
     args = parser.parse_args()
 
     fewshot_learner = FewShotLearner(args)
+
+    from pytorch_lightning.loggers import TensorBoardLogger
+
+    logger = TensorBoardLogger('tb_logs', name='FewShotLearner')
+
     trainer = pl.Trainer(
         gpus=args.gpus,
         max_epochs=args.epochs,
         distributed_backend='ddp',
         precision=16,
         weights_summary=None,
-        val_check_interval=1000/args.n_train_tasks  # test for every 1000 tasks.
+        val_check_interval=args.n_val_interval/args.n_train_tasks,  # test for every 1000 tasks.
+        logger=logger
     )
     trainer.fit(fewshot_learner)
+    trainer.test(ckpt_path=None)  # don't load a checkpoint, instead use the model with the latest weights

@@ -7,13 +7,12 @@ from PIL import Image
 from learn2learn.data.transforms import NWays, KShots, LoadData, RemapLabels, ConsecutiveLabels
 
 from collections import namedtuple
-BenchmarkTasksets = namedtuple('BenchmarkTasksets', ('train', 'test'))
+BenchmarkTasksets = namedtuple('BenchmarkTasksets', ('train', 'valid', 'test'))
 
 
 def get_normal_tasksets(
         root='data',
-        dataset='cifar10-fc100',
-        train_mode='train_val'
+        dataset='cifar10-fc100'
     ):
     if dataset == 'mini-imagenet':
         train_transform = transforms.Compose([
@@ -21,7 +20,7 @@ def get_normal_tasksets(
             # transforms.Resize(160, interpolation=Image.BILINEAR),
             # transforms.RandomCrop(128),
             transforms.RandomResizedCrop(128),
-            # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
             # transforms.RandomHorizontalFlip(),
             transforms.ToTensor()
         ])
@@ -37,7 +36,7 @@ def get_normal_tasksets(
         train_transform = transforms.Compose([
             transforms.Resize(160, interpolation=Image.BILINEAR),
             transforms.RandomCrop(128),
-            # transforms.RandomHorizontalFlip(),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor()
         ])
 
@@ -53,13 +52,13 @@ def get_normal_tasksets(
             transform=train_transform,
             mode='train'
         )
-        if train_mode == 'train_val':
-            valid_dataset = l2l.vision.datasets.CIFARFS(
-                root=root,
-                transform=train_transform,
-                mode='validation'
-            )
-            train_dataset = ConcatDataset([train_dataset, valid_dataset])
+
+        valid_dataset = l2l.vision.datasets.CIFARFS(
+            root=root,
+            transform=train_transform,
+            mode='validation'
+        )
+
         test_dataset = l2l.vision.datasets.CIFARFS(
             root=root,
             transform=test_transform,
@@ -71,13 +70,12 @@ def get_normal_tasksets(
             transform=train_transform,
             mode='train'
         )
-        if train_mode == 'train_val':
-            valid_dataset = l2l.vision.datasets.FC100(
-                root=root,
-                transform=train_transform,
-                mode='validation'
-            )
-            train_dataset = ConcatDataset([train_dataset, valid_dataset])
+
+        valid_dataset = l2l.vision.datasets.FC100(
+            root=root,
+            transform=train_transform,
+            mode='validation'
+        )
 
         test_dataset = l2l.vision.datasets.FC100(
             root=root,
@@ -90,13 +88,13 @@ def get_normal_tasksets(
             transform=train_transform,
             mode='train'
         )
-        if train_mode == 'train_val':
-            valid_dataset = l2l.vision.datasets.MiniImagenet(
-                root=root,
-                transform=train_transform,
-                mode='validation'
-            )
-            train_dataset = ConcatDataset([train_dataset, valid_dataset])
+
+        valid_dataset = l2l.vision.datasets.MiniImagenet(
+            root=root,
+            transform=train_transform,
+            mode='validation'
+        )
+
         test_dataset = l2l.vision.datasets.MiniImagenet(
             root=root,
             transform=test_transform,
@@ -109,14 +107,14 @@ def get_normal_tasksets(
             mode='train',
             download=True
         )
-        if train_mode == 'train_val':
-            valid_dataset = l2l.vision.datasets.TieredImagenet(
-                root=root,
-                transform=train_transform,
-                mode='validation',
-                download=True
-            )
-            train_dataset = ConcatDataset([train_dataset, valid_dataset])
+
+        valid_dataset = l2l.vision.datasets.TieredImagenet(
+            root=root,
+            transform=train_transform,
+            mode='validation',
+            download=True
+        )
+
         test_dataset = l2l.vision.datasets.TieredImagenet(
             root=root,
             transform=test_transform,
@@ -126,7 +124,7 @@ def get_normal_tasksets(
     else:
         raise Exception("dataset {} not available.".format(dataset))
 
-    return train_dataset, test_dataset
+    return train_dataset, valid_dataset, test_dataset
 
 
 def get_few_shot_tasksets(
@@ -154,8 +152,9 @@ def get_few_shot_tasksets(
     :return:
     """
 
-    train_dataset, test_dataset = get_normal_tasksets(root=root, dataset=dataset, train_mode=train_mode)
+    train_dataset, valid_dataset, test_dataset = get_normal_tasksets(root=root, dataset=dataset)
     train_dataset = l2l.data.MetaDataset(train_dataset)
+    valid_dataset = l2l.data.MetaDataset(valid_dataset)
     test_dataset = l2l.data.MetaDataset(test_dataset)
 
     train_transforms = [
@@ -164,6 +163,14 @@ def get_few_shot_tasksets(
         LoadData(train_dataset),
         RemapLabels(train_dataset),
         ConsecutiveLabels(train_dataset),
+    ]
+
+    valid_transforms = [
+        NWays(valid_dataset, test_ways),
+        KShots(valid_dataset, test_samples),
+        LoadData(valid_dataset),
+        RemapLabels(valid_dataset),
+        ConsecutiveLabels(valid_dataset),
     ]
 
     test_transforms = [
@@ -180,13 +187,20 @@ def get_few_shot_tasksets(
         task_transforms=train_transforms,
         num_tasks=n_train_tasks,
     )
+
+    valid_tasks = l2l.data.TaskDataset(
+        dataset=valid_dataset,
+        task_transforms=test_transforms,
+        num_tasks=n_test_tasks,
+    )
+
     test_tasks = l2l.data.TaskDataset(
         dataset=test_dataset,
         task_transforms=test_transforms,
         num_tasks=n_test_tasks,
     )
 
-    return BenchmarkTasksets(train_tasks, test_tasks)
+    return BenchmarkTasksets(train_tasks, valid_tasks, test_tasks)
 
 
 if __name__ == '__main__':
@@ -215,4 +229,3 @@ if __name__ == '__main__':
     tsk = l2l.data.TaskDataset(dset)
     batch = tsk.sample()
     print(batch)
-
