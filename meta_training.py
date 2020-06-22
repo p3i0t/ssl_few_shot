@@ -139,7 +139,7 @@ def run_worker(rank, args):
     print("Meta-Training")
     run_epoch(model, train_loader, optimizer=optimizer, rank=rank)
     print("Test")
-    run_epoch(model, train_loader, optimizer=None, rank=rank)
+    run_epoch(model, test_loader, optimizer=None, rank=rank)
 
 
 def run_epoch(model, data_loader, optimizer=None, rank=0):
