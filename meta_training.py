@@ -43,7 +43,7 @@ class FewShotLearner(nn.Module):
         self.n_ways = n_ways
         self.n_shots = n_shots
         self.n_queries = n_queries
-        self.backbone = eval(args.backbone)()
+        self.backbone = eval(backbone)()
         self.proj_dim = self.backbone.fc.in_features
         self.backbone.fc = nn.Identity()  # remove final fully connected layer
 
@@ -161,9 +161,9 @@ def run_epoch(model, data_loader, optimizer=None, rank=0):
         model.eval()
 
     data_bar = tqdm(data_loader)
-    for x in data_bar:
+    for x, _ in data_bar:
         x = x.cuda(rank, non_blocking=True)
-        loss, acc = model(x)
+        loss, acc = model(x, train=True if optimizer else False)
 
         loss_meter.update(loss.item(), x.size(0))
         acc_meter.update(acc.item(), x.size(0))
@@ -182,7 +182,7 @@ if __name__ == '__main__':
                         help='one of [cifar-fs, cifar-fc100, mini-imagenet, tiered-imagenet]')
     parser.add_argument('--backbone', type=str, default='resnet50x1', help='name of backbone')
     parser.add_argument('--gpus', type=int, default=2, help='gpu device id')
-    parser.add_argument('--batch_size', type=int, default=20, help='batch_size')
+    parser.add_argument('--batch_size', type=int, default=10, help='batch_size')
     parser.add_argument('--n_ways', type=int, default=5, help='n_ways')
     parser.add_argument('--n_shots', type=int, default=1, help='n_shots')
     parser.add_argument('--n_queries', type=int, default=5, help='n_queries')
