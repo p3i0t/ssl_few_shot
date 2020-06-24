@@ -56,7 +56,7 @@ class FewShotLearner(nn.Module):
         b, prod, c, h, w = x.size()  # prod = n_way * n_aug
         return F.normalize(self.backbone(x.view(-1, c, h, w)), dim=-1)  # normalized representation
 
-    def forward(self, x, train=True):
+    def forward(self, x, train=True, mode='meta'):
         b, way_shot_query, c, h, w = x.size()
 
         n_queries = self.n_queries if train else 1
@@ -78,8 +78,17 @@ class FewShotLearner(nn.Module):
         s = s.clone().permute(0, 2, 1).contiguous()
 
         cosine_scores = q @ s  # batch matrix multiplication
-        logits = cosine_scores.view(-1, self.n_ways) / 0.1
+        logits = cosine_scores.view(-1, self.n_ways)
         labels = y_queries.contiguous().view(-1)
+
+        if mode == 'meta':
+            logits = logits / 0.1  # scale with temperature=0.1
+        elif mode == 'margin':
+            margin = 1.0
+            masked_margin = margin * torch.ones_like(cosine_scores).scatter_(dim=1, index=labels.unsqueeze(dim=1), value=0.)
+            logits = logits + masked_margin
+        else:
+            raise Exception('score mode {} not available'.format(mode))
 
         loss = F.cross_entropy(logits, labels)
         acc = (logits.argmax(dim=1) == labels).float().mean()
@@ -181,7 +190,11 @@ if __name__ == '__main__':
     parser.add_argument('--n_test_tasks', type=int, default=1000, help='n_train_tasks')
     args = parser.parse_args()
 
+    assert torch.cuda.is_available(), "No GPUs available."
     n_gpus = torch.cuda.device_count()
     args.world_size = n_gpus
+    print("Dataset: {}".format(args.dataset))
+    print("# Train tasks: {}".format(args.n_train_tasks))
+    print("# Test tasks: {}".format(args.n_test_tasks))
     mp.spawn(run_worker, nprocs=n_gpus, args=(args, ))
 
