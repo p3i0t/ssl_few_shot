@@ -1,5 +1,4 @@
 from torchvision import transforms
-from torch.utils.data import ConcatDataset
 
 import learn2learn as l2l
 from PIL import Image
@@ -136,7 +135,6 @@ def get_few_shot_tasksets(
         test_samples=10,
         n_train_tasks=2000,
         n_test_tasks=1000,
-        train_mode='train_val',
     ):
     """
     Fetch the train, valid, test meta tasks of given dataset.
@@ -148,7 +146,6 @@ def get_few_shot_tasksets(
     :param test_samples: number of each-way samples for a valid or test task.
     :param n_train_tasks: total number of train tasks.
     :param n_test_tasks: total number of valid and test tasks.
-    :param train_mode: whether use valid set for training.
     :return:
     """
 
@@ -163,14 +160,6 @@ def get_few_shot_tasksets(
         LoadData(train_dataset),
         RemapLabels(train_dataset),
         ConsecutiveLabels(train_dataset),
-    ]
-
-    valid_transforms = [
-        NWays(valid_dataset, test_ways),
-        KShots(valid_dataset, test_samples),
-        LoadData(valid_dataset),
-        RemapLabels(valid_dataset),
-        ConsecutiveLabels(valid_dataset),
     ]
 
     test_transforms = [
